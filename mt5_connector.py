@@ -47,6 +47,8 @@ class AccountInfo:
     margin:       float
     free_margin:  float
     margin_level: float
+    credit:       float = 0.0   # broker-granted credit — separate from balance;
+                                # equity = balance + credit + floating + swap
 
 
 @dataclass
@@ -203,6 +205,7 @@ class MT5Connector:
             margin       = raw.margin,
             free_margin  = raw.margin_free,
             margin_level = raw.margin_level if raw.margin > 0 else 0.0,
+            credit       = getattr(raw, "credit", 0.0),
         )
 
     def get_positions(self) -> pd.DataFrame:
