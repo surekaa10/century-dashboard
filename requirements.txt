@@ -1,0 +1,8 @@
+# Cloud frontend (Streamlit Community Cloud) — NO MetaTrader5 here (Linux can't run it)
+streamlit>=1.40
+pandas>=2.0
+numpy>=1.26
+plotly>=5.20
+yfinance>=0.2.40
+requests>=2.31
+python-dotenv>=1.0

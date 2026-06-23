@@ -1,0 +1,22 @@
+# ── Secrets — NEVER commit ──────────────────────────────────────────────
+Credentials.env
+.env
+.pusher.env
+.streamlit/secrets.toml
+.streamlit/machine_id*
+
+# ── Snapshot artifact (lives on the `snapshot` branch, not main) ─────────
+snapshot.json
+
+# ── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# ── OS / editor ─────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
