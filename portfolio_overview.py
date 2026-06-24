@@ -49,55 +49,88 @@ THEME_COLORS: dict[str, str] = {
 # get_gics_info() falls back to yf.Ticker(sym).info so new positions
 # auto-classify without any code change.
 
-_GICS_OVERRIDES: dict[str, tuple[str, str]] = {
-    # symbol → (GICS Sector, GICS Industry Group)
-    "NVDA":     ("Information Technology", "Semiconductors & Semiconductor Equipment"),
-    "AVGO":     ("Information Technology", "Semiconductors & Semiconductor Equipment"),
-    "DRAM":     ("Information Technology", "Semiconductors & Semiconductor Equipment"),
-    "AMD":      ("Information Technology", "Semiconductors & Semiconductor Equipment"),
-    "MSFT":     ("Information Technology", "Software & Services"),
-    "AAPL":     ("Information Technology", "Technology Hardware & Equipment"),
-    "AMZN":     ("Consumer Discretionary", "Consumer Discretionary Distribution & Retail"),
-    "TSLA":     ("Consumer Discretionary", "Automobiles & Components"),
-    "GOOGL":    ("Communication Services", "Media & Entertainment"),
-    "GOOG":     ("Communication Services", "Media & Entertainment"),
-    "META":     ("Communication Services", "Media & Entertainment"),
-    "LLY":      ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences"),
-    "AMGN":     ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences"),
-    "JPM":      ("Financials",             "Banks"),
-    "GS":       ("Financials",             "Diversified Financials"),
-    "RHM.DE":   ("Industrials",            "Capital Goods"),
-    "BA":       ("Industrials",            "Capital Goods"),
-    "XOM":      ("Energy",                 "Energy"),
-    "CVX":      ("Energy",                 "Energy"),
-    "GC=F":     ("Commodities",            "Precious Metals"),
-    "SI=F":     ("Commodities",            "Precious Metals"),
-    "CL=F":     ("Commodities",            "Energy"),
-    "DX-Y.NYB": ("Macro / FX",            "Currency Index"),
-    "ES=F":     ("Macro / FX",            "Equity Index"),
-    "NQ=F":     ("Macro / FX",            "Equity Index"),
-    "EURUSD=X": ("Macro / FX",            "Currency"),
+_GICS_OVERRIDES: dict[str, tuple[str, str, str]] = {
+    # symbol → (GICS Sector, GICS Industry Group, GICS Industry)
+    "NVDA":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "AVGO":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "DRAM":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "AMD":      ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "QCOM":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "INTC":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductors"),
+    "TSM":      ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductor Equipment"),
+    "ASML":     ("Information Technology", "Semiconductors & Semiconductor Equipment", "Semiconductor Equipment"),
+    "MSFT":     ("Information Technology", "Software & Services",                      "Systems Software"),
+    "ORCL":     ("Information Technology", "Software & Services",                      "Application Software"),
+    "CRM":      ("Information Technology", "Software & Services",                      "Application Software"),
+    "AAPL":     ("Information Technology", "Technology Hardware & Equipment",           "Technology Hardware, Storage & Peripherals"),
+    "DELL":     ("Information Technology", "Technology Hardware & Equipment",           "Technology Hardware, Storage & Peripherals"),
+    "HPQ":      ("Information Technology", "Technology Hardware & Equipment",           "Technology Hardware, Storage & Peripherals"),
+    "AMZN":     ("Consumer Discretionary", "Consumer Discretionary Distribution & Retail", "Internet & Direct Marketing Retail"),
+    "TSLA":     ("Consumer Discretionary", "Automobiles & Components",                  "Automobile Manufacturers"),
+    "GOOGL":    ("Communication Services", "Media & Entertainment",                    "Interactive Media & Services"),
+    "GOOG":     ("Communication Services", "Media & Entertainment",                    "Interactive Media & Services"),
+    "META":     ("Communication Services", "Media & Entertainment",                    "Interactive Media & Services"),
+    "NFLX":     ("Communication Services", "Media & Entertainment",                    "Movies & Entertainment"),
+    "DIS":      ("Communication Services", "Media & Entertainment",                    "Movies & Entertainment"),
+    "LLY":      ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences", "Pharmaceuticals"),
+    "PFE":      ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences", "Pharmaceuticals"),
+    "AMGN":     ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences", "Biotechnology"),
+    "MRNA":     ("Health Care",            "Pharmaceuticals, Biotechnology & Life Sciences", "Biotechnology"),
+    "UNH":      ("Health Care",            "Health Care Equipment & Services",              "Managed Health Care"),
+    "JPM":      ("Financials",             "Banks",                                         "Diversified Banks"),
+    "BAC":      ("Financials",             "Banks",                                         "Diversified Banks"),
+    "GS":       ("Financials",             "Diversified Financials",                        "Investment Banking & Brokerage"),
+    "MS":       ("Financials",             "Diversified Financials",                        "Investment Banking & Brokerage"),
+    "BLK":      ("Financials",             "Diversified Financials",                        "Asset Management & Custody Banks"),
+    "RHM.DE":   ("Industrials",            "Capital Goods",                                 "Aerospace & Defence"),
+    "BA":       ("Industrials",            "Capital Goods",                                 "Aerospace & Defence"),
+    "RTX":      ("Industrials",            "Capital Goods",                                 "Aerospace & Defence"),
+    "LMT":      ("Industrials",            "Capital Goods",                                 "Aerospace & Defence"),
+    "CAT":      ("Industrials",            "Capital Goods",                                 "Construction Machinery & Heavy Trucks"),
+    "XOM":      ("Energy",                 "Energy",                                        "Integrated Oil & Gas"),
+    "CVX":      ("Energy",                 "Energy",                                        "Integrated Oil & Gas"),
+    "GC=F":     ("Commodities",            "Precious Metals",                               "Gold"),
+    "SI=F":     ("Commodities",            "Precious Metals",                               "Silver"),
+    "CL=F":     ("Commodities",            "Energy",                                        "Crude Oil"),
+    "NG=F":     ("Commodities",            "Energy",                                        "Natural Gas"),
+    "DX-Y.NYB": ("Macro / FX",            "Currency Index",                                "US Dollar Index"),
+    "ES=F":     ("Macro / FX",            "Equity Index",                                  "S&P 500 Futures"),
+    "NQ=F":     ("Macro / FX",            "Equity Index",                                  "Nasdaq 100 Futures"),
+    "YM=F":     ("Macro / FX",            "Equity Index",                                  "DJIA Futures"),
+    "EURUSD=X": ("Macro / FX",            "Currency",                                      "EUR/USD"),
+    "GBPUSD=X": ("Macro / FX",            "Currency",                                      "GBP/USD"),
+    "USDJPY=X": ("Macro / FX",            "Currency",                                      "USD/JPY"),
 }
 
 
-def get_gics_info(symbol: str) -> tuple[str, str]:
+def get_gics_info(symbol: str) -> tuple[str, str, str]:
     """
-    Return (GICS Sector, GICS Industry Group) for a symbol.
-    Priority: _GICS_OVERRIDES → yfinance .info lookup → ("Other", "Other").
+    Return (GICS Sector, GICS Industry Group, GICS Industry) for a symbol.
+    Priority: _GICS_OVERRIDES → yfinance .info lookup → ("Other", "Other", "Other").
     Callers should cache the result (e.g. @st.cache_data in dashboard.py).
     """
-    if symbol in _GICS_OVERRIDES:
-        return _GICS_OVERRIDES[symbol]
+    override = _GICS_OVERRIDES.get(symbol)
+    if override is not None:
+        if len(override) == 3:
+            return override
+        return override[0], override[1], override[1]   # backcompat if 2-tuple slipped in
+
+    # Try stripping common MT5 broker suffixes (e.g. "NVDAm" → "NVDA")
+    stripped = symbol.rstrip("m").rstrip(".r").rstrip(".e")
+    if stripped != symbol and stripped in _GICS_OVERRIDES:
+        return get_gics_info(stripped)
+
     if _YF:
         try:
-            info     = yf.Ticker(symbol).info
-            sector   = (info.get("sector")   or "").strip() or "Other"
-            industry = (info.get("industry") or "").strip() or "Other"
+            info          = yf.Ticker(symbol).info
+            sector        = (info.get("sector")        or "").strip() or "Other"
+            industry_grp  = (info.get("industryDisp")  or info.get("industry") or "").strip() or sector
+            industry      = (info.get("industry")      or "").strip() or industry_grp
             if sector != "Other":
-                return sector, industry
+                return sector, industry_grp, industry
         except Exception:
             pass
-    return "Other", "Other"
+    return "Other", "Other", "Other"
 
 PERIODS: dict[str, int] = {
     "1D": 1, "1W": 7, "1M": 30,
@@ -537,10 +570,10 @@ def chart_equity_curve(
 
 def chart_sector_sunburst(
     agg_df: pd.DataFrame,
-    gics_lookup: dict,   # {symbol: (sector, industry_group)}
+    gics_lookup: dict,   # {symbol: (sector, industry_group, industry)}
 ) -> go.Figure:
     """
-    GICS Sunburst: Portfolio → Sector → Industry Group → Symbol.
+    GICS Sunburst: Portfolio → Sector → Industry Group → Industry → Symbol.
     Size = market value.  Colour = P&L % (red → dark neutral → green).
     Click a sector/industry slice to drill down; double-click to reset.
     New positions auto-classify via get_gics_info() — no code change needed.
@@ -552,7 +585,7 @@ def chart_sector_sunburst(
     total_pnl  = agg_df["Unrealized P&L"].sum()
     root_pct   = total_pnl / total_mv * 100 if total_mv else 0
 
-    # Build hierarchy: sector → industry → [(sym, mv, pnl, pnl_pct, weight)]
+    # Build hierarchy: sector → industry_group → industry → [(sym, mv, pnl, pnl_pct, weight)]
     hierarchy: dict = {}
     for _, row in agg_df.iterrows():
         sym  = row["Symbol"]
@@ -560,9 +593,15 @@ def chart_sector_sunburst(
         pnl  = row["Unrealized P&L"]
         pct  = row["P&L %"]
         wt   = row["Weight %"]
-        sector, industry = gics_lookup.get(sym, ("Other", "Other"))
-        hierarchy.setdefault(sector, {}).setdefault(industry, []).append(
-            (sym, mv, pnl, pct, wt)
+        gics = gics_lookup.get(sym, ("Other", "Other", "Other"))
+        sector       = gics[0]
+        industry_grp = gics[1]
+        industry     = gics[2] if len(gics) > 2 else gics[1]
+        (hierarchy
+            .setdefault(sector, {})
+            .setdefault(industry_grp, {})
+            .setdefault(industry, [])
+            .append((sym, mv, pnl, pct, wt))
         )
 
     ids, labels, parents, values, pnl_pcts, hover_html = [], [], [], [], [], []
@@ -579,9 +618,9 @@ def chart_sector_sunburst(
         f"P&L: ${total_pnl:+,.2f}  ({root_pct:+.2f}%)"
     )
 
-    for sector, industries in sorted(hierarchy.items()):
-        s_mv  = sum(mv  for syms in industries.values() for _, mv,  _, _, _ in syms)
-        s_pnl = sum(pnl for syms in industries.values() for _, _,  pnl, _, _ in syms)
+    for sector, ig_map in sorted(hierarchy.items()):
+        s_mv  = sum(mv  for ig in ig_map.values() for inds in ig.values() for _, mv,  _, _, _ in inds)
+        s_pnl = sum(pnl for ig in ig_map.values() for inds in ig.values() for _, _,  pnl, _, _ in inds)
         s_pct = s_pnl / s_mv * 100 if s_mv else 0
         s_id  = f"s|{sector}"
 
@@ -596,34 +635,56 @@ def chart_sector_sunburst(
             f"P&L: ${s_pnl:+,.2f}  ({s_pct:+.2f}%)"
         )
 
-        for industry, syms in sorted(industries.items()):
-            ig_mv  = sum(mv  for _, mv,  _, _, _ in syms)
-            ig_pnl = sum(pnl for _, _,  pnl, _, _ in syms)
+        for industry_grp, ind_map in sorted(ig_map.items()):
+            ig_mv  = sum(mv  for inds in ind_map.values() for _, mv,  _, _, _ in inds)
+            ig_pnl = sum(pnl for inds in ind_map.values() for _, _,  pnl, _, _ in inds)
             ig_pct = ig_pnl / ig_mv * 100 if ig_mv else 0
-            ig_id  = f"ig|{sector}|{industry}"
+            ig_id  = f"ig|{sector}|{industry_grp}"
 
             ids.append(ig_id)
-            labels.append(industry)
+            labels.append(industry_grp)
             parents.append(s_id)
             values.append(ig_mv)
             pnl_pcts.append(ig_pct)
             hover_html.append(
-                f"<b>{industry}</b><br>"
+                f"<b>{industry_grp}</b><br>"
                 f"MV: ${ig_mv:,.0f}  ({ig_mv/total_mv*100:.1f}%)<br>"
                 f"P&L: ${ig_pnl:+,.2f}  ({ig_pct:+.2f}%)"
             )
 
-            for sym, mv, pnl, pct, wt in sorted(syms, key=lambda x: -x[1]):
-                ids.append(f"sym|{sector}|{industry}|{sym}")
-                labels.append(sym)
-                parents.append(ig_id)
-                values.append(mv)
-                pnl_pcts.append(pct)
-                hover_html.append(
-                    f"<b>{sym}</b><br>"
-                    f"MV: ${mv:,.0f}  ({wt:.1f}%)<br>"
-                    f"P&L: ${pnl:+,.2f}  ({pct:+.2f}%)"
-                )
+            for industry, syms in sorted(ind_map.items()):
+                ind_mv  = sum(mv  for _, mv,  _, _, _ in syms)
+                ind_pnl = sum(pnl for _, _,  pnl, _, _ in syms)
+                ind_pct = ind_pnl / ind_mv * 100 if ind_mv else 0
+                ind_id  = f"ind|{sector}|{industry_grp}|{industry}"
+
+                # Only add an industry node if it's distinct from the industry group
+                if industry != industry_grp:
+                    ids.append(ind_id)
+                    labels.append(industry)
+                    parents.append(ig_id)
+                    values.append(ind_mv)
+                    pnl_pcts.append(ind_pct)
+                    hover_html.append(
+                        f"<b>{industry}</b><br>"
+                        f"MV: ${ind_mv:,.0f}  ({ind_mv/total_mv*100:.1f}%)<br>"
+                        f"P&L: ${ind_pnl:+,.2f}  ({ind_pct:+.2f}%)"
+                    )
+                    sym_parent = ind_id
+                else:
+                    sym_parent = ig_id
+
+                for sym, mv, pnl, pct, wt in sorted(syms, key=lambda x: -x[1]):
+                    ids.append(f"sym|{sector}|{industry_grp}|{industry}|{sym}")
+                    labels.append(sym)
+                    parents.append(sym_parent)
+                    values.append(mv)
+                    pnl_pcts.append(pct)
+                    hover_html.append(
+                        f"<b>{sym}</b><br>"
+                        f"MV: ${mv:,.0f}  ({wt:.1f}%)<br>"
+                        f"P&L: ${pnl:+,.2f}  ({pct:+.2f}%)"
+                    )
 
     max_abs = max((abs(v) for v in pnl_pcts), default=1.0) or 1.0
     colorscale = [
@@ -663,7 +724,7 @@ def chart_sector_sunburst(
         height=420,
         margin=dict(l=0, r=0, t=46, b=0),
         title=dict(
-            text="GICS Sector Allocation  (size = MV · colour = P&L %)",
+            text="GICS  Sector → Industry Group → Industry  (size = MV · colour = P&L %)",
             font=dict(color=_HDR, size=13, family="Inter, sans-serif"),
             x=0, pad=dict(l=4),
         ),

@@ -50,10 +50,13 @@ def aggregate_positions(raw_df: pd.DataFrame) -> pd.DataFrame:
     if raw_df.empty:
         return pd.DataFrame()
 
-    total_mv = (raw_df["Volume"] * raw_df["Current Price"]).sum()
+    df = raw_df.copy()
+    df["Symbol"] = df["Symbol"].astype(str).str.strip()
+
+    total_mv = (df["Volume"] * df["Current Price"]).sum()
     rows = []
 
-    for symbol, grp in raw_df.groupby("Symbol", sort=False):
+    for symbol, grp in df.groupby("Symbol", sort=False):
         total_qty    = grp["Volume"].sum()
         avg_cost     = (grp["Entry Price"] * grp["Volume"]).sum() / total_qty
         current_px   = grp["Current Price"].iloc[0]
@@ -226,11 +229,11 @@ def chart_correlation_heatmap(prices_df: pd.DataFrame) -> go.Figure:
 
     colorscale = [
         [0.00, "#f43f5e"],   # ρ = -1.0  vivid red
-        [0.20, "#881337"],   # ρ = -0.6  deep rose
-        [0.40, "#1e1b2e"],   # ρ = -0.2  very dark neutral
-        [0.50, "#0d1321"],   # ρ =  0.0  darkest card bg
-        [0.60, "#0d2818"],   # ρ = +0.2  very dark green
-        [0.80, "#065f46"],   # ρ = +0.6  deep emerald
+        [0.20, "#e11d48"],   # ρ = -0.6  bold red
+        [0.40, "#4c1d2e"],   # ρ = -0.2  dark rose
+        [0.50, "#1e293b"],   # ρ =  0.0  slate — visibly distinct from card bg
+        [0.60, "#14432e"],   # ρ = +0.2  dark emerald
+        [0.80, "#059669"],   # ρ = +0.6  bright emerald
         [1.00, "#10b981"],   # ρ = +1.0  vivid green
     ]
 
@@ -303,10 +306,10 @@ def chart_winners_losers(agg_df: pd.DataFrame) -> go.Figure:
             "<extra></extra>"
         ),
     ))
-    _dark(fig, "Winners & Losers — Unrealized P&L", height=360)
+    _dark(fig, "Unrealized P&L by Symbol  (aggregated positions)", height=360)
     fig.update_layout(
         xaxis=dict(
-            title="Unrealized P&L (USD)",
+            title="Unrealized P&L ($)",
             tickprefix="$",
             tickformat=",.0f",
             zeroline=True,
