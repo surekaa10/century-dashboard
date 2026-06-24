@@ -7,12 +7,15 @@ import KpiStrip from "@/components/KpiStrip";
 import PositionsTable from "@/components/PositionsTable";
 import EquityCurve from "@/components/EquityCurve";
 import AllocationDonut from "@/components/AllocationDonut";
+import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 
 const POLL_MS = 30_000;
+type Tab = "overview" | "analytics";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [now, setNow] = useState<number>(Date.now());
+  const [tab, setTab] = useState<Tab>("overview");
 
   useEffect(() => {
     let alive = true;
@@ -31,6 +34,7 @@ export default function Page() {
             positions: [],
             deals: [],
             todayRealized: 0,
+            symbolRates: {},
           });
       }
     };
@@ -56,20 +60,46 @@ export default function Page() {
 
       {account ? (
         <>
-          <KpiStrip
-            account={account}
-            positions={snapshot!.positions}
-            todayRealized={snapshot!.todayRealized}
-          />
-          <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <EquityCurve deals={snapshot!.deals} currentEquity={account.equity} />
-            </div>
-            <AllocationDonut positions={snapshot!.positions} />
-          </div>
-          <div className="px-6 py-4">
-            <PositionsTable positions={snapshot!.positions} />
-          </div>
+          <nav className="flex gap-1 border-b border-cyan-500/10 px-6">
+            {([
+              ["overview", "Overview"],
+              ["analytics", "Position Analytics"],
+            ] as [Tab, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
+                  tab === key
+                    ? "border-cyan-400 text-cyan-300"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          {tab === "overview" ? (
+            <>
+              <KpiStrip
+                account={account}
+                positions={snapshot!.positions}
+                todayRealized={snapshot!.todayRealized}
+              />
+              <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <EquityCurve deals={snapshot!.deals} currentEquity={account.equity} />
+                </div>
+                <AllocationDonut positions={snapshot!.positions} />
+              </div>
+              <div className="px-6 py-4">
+                <PositionsTable positions={snapshot!.positions} />
+              </div>
+            </>
+          ) : (
+            <PositionAnalytics snapshot={snapshot!} />
+          )}
+
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
             Century Research · reads snapshot.json · auto-refresh 30s
           </footer>

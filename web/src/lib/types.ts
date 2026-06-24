@@ -39,6 +39,13 @@ export interface Deal {
   swap: number;
 }
 
+export interface PriceSeries {
+  dates: string[];   // ISO date strings, ascending
+  close: number[];
+}
+
+export type SymbolRates = Record<string, PriceSeries>;
+
 export interface Snapshot {
   ok: boolean;
   error: string;
@@ -47,4 +54,5 @@ export interface Snapshot {
   positions: Position[];
   deals: Deal[];
   todayRealized: number;
+  symbolRates: SymbolRates;   // daily closes per held symbol (from MT5)
 }

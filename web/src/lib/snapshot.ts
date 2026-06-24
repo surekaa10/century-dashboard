@@ -2,7 +2,7 @@
 // it. The GitHub token never leaves the server (read here, in a Route Handler).
 
 import "server-only";
-import type { Account, Deal, Position, Snapshot } from "./types";
+import type { Account, Deal, Position, Snapshot, SymbolRates } from "./types";
 
 const num = (v: unknown, d = 0): number => {
   const n = typeof v === "string" ? parseFloat(v) : (v as number);
@@ -93,5 +93,16 @@ export async function fetchSnapshot(): Promise<Snapshot> {
     positions: normalizePositions(payload.positions ?? []),
     deals: normalizeDeals(payload.deals ?? []),
     todayRealized: num(payload.today_realized),
+    symbolRates: normalizeRates(payload.symbol_rates ?? {}),
   };
+}
+
+function normalizeRates(raw: Record<string, { index?: string[]; Close?: number[] }>): SymbolRates {
+  const out: SymbolRates = {};
+  for (const [sym, blob] of Object.entries(raw ?? {})) {
+    const dates = (blob?.index ?? []).map((d) => String(d).slice(0, 10));
+    const close = (blob?.Close ?? []).map((c) => num(c));
+    if (dates.length && dates.length === close.length) out[sym] = { dates, close };
+  }
+  return out;
 }
