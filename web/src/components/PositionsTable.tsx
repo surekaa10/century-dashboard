@@ -1,10 +1,11 @@
 "use client";
 
 import type { Position } from "@/lib/types";
-import { fmtMoney, fmtSigned, pnlClass } from "@/lib/format";
+import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 
 export default function PositionsTable({ positions }: { positions: Position[] }) {
   const sorted = [...positions].sort((a, b) => b.marketValue - a.marketValue);
+  const totalMv = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
 
   return (
     <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012]">
@@ -21,40 +22,53 @@ export default function PositionsTable({ positions }: { positions: Position[] })
               <th className="px-4 py-2 text-right">Entry</th>
               <th className="px-4 py-2 text-right">Current</th>
               <th className="px-4 py-2 text-right">Market Value</th>
-              <th className="px-4 py-2 text-right">Swap</th>
               <th className="px-4 py-2 text-right">Unrealized P&L</th>
+              <th className="px-4 py-2 text-right">P&L %</th>
+              <th className="px-4 py-2 text-right">Weight %</th>
+              <th className="px-4 py-2 text-right">Swap</th>
+              <th className="px-4 py-2 text-left">Open Time</th>
             </tr>
           </thead>
           <tbody className="font-mono">
-            {sorted.map((p, i) => (
-              <tr key={`${p.symbol}-${i}`} className="border-t border-white/[0.04]">
-                <td className="px-4 py-2 text-left font-sans font-medium text-slate-200">
-                  {p.symbol}
-                </td>
-                <td className="px-4 py-2 text-left">
-                  <span
-                    className={
-                      p.direction === "Long"
-                        ? "rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400"
-                        : "rounded bg-rose-500/10 px-2 py-0.5 text-xs text-rose-400"
-                    }
-                  >
-                    {p.direction}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-right text-slate-300">{p.volume}</td>
-                <td className="px-4 py-2 text-right text-slate-400">{fmtMoney(p.entryPrice)}</td>
-                <td className="px-4 py-2 text-right text-slate-300">{fmtMoney(p.currentPrice)}</td>
-                <td className="px-4 py-2 text-right text-slate-300">{fmtMoney(p.marketValue)}</td>
-                <td className={`px-4 py-2 text-right ${pnlClass(p.swap)}`}>{fmtSigned(p.swap)}</td>
-                <td className={`px-4 py-2 text-right font-semibold ${pnlClass(p.unrealizedPnl)}`}>
-                  {fmtSigned(p.unrealizedPnl)}
-                </td>
-              </tr>
-            ))}
+            {sorted.map((p, i) => {
+              const basis = Math.abs(p.entryPrice * p.volume);
+              const pnlPct = basis > 0 ? (p.unrealizedPnl / basis) * 100 : 0;
+              const weight = (Math.abs(p.marketValue) / totalMv) * 100;
+              return (
+                <tr key={`${p.symbol}-${i}`} className="border-t border-white/[0.04]">
+                  <td className="px-4 py-2 text-left font-sans font-medium text-slate-200">
+                    {p.symbol}
+                  </td>
+                  <td className="px-4 py-2 text-left">
+                    <span
+                      className={
+                        p.direction === "Long"
+                          ? "rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400"
+                          : "rounded bg-rose-500/10 px-2 py-0.5 text-xs text-rose-400"
+                      }
+                    >
+                      {p.direction}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-right text-slate-300">{p.volume}</td>
+                  <td className="px-4 py-2 text-right text-slate-400">{fmtMoney(p.entryPrice)}</td>
+                  <td className="px-4 py-2 text-right text-slate-300">{fmtMoney(p.currentPrice)}</td>
+                  <td className="px-4 py-2 text-right text-slate-300">{fmtMoney(p.marketValue)}</td>
+                  <td className={`px-4 py-2 text-right font-semibold ${pnlClass(p.unrealizedPnl)}`}>
+                    {fmtSigned(p.unrealizedPnl)}
+                  </td>
+                  <td className={`px-4 py-2 text-right ${pnlClass(pnlPct)}`}>{fmtPct(pnlPct)}</td>
+                  <td className="px-4 py-2 text-right text-slate-400">{weight.toFixed(2)}%</td>
+                  <td className={`px-4 py-2 text-right ${pnlClass(p.swap)}`}>
+                    {p.swap !== 0 ? fmtSigned(p.swap) : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-left text-slate-500">{p.openTime}</td>
+                </tr>
+              );
+            })}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                   No open positions
                 </td>
               </tr>
