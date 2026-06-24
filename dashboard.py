@@ -1300,6 +1300,26 @@ def main() -> None:
     gh   = _gh_config()
     mode = "snapshot" if gh else "live"
 
+    # On a host without the MetaTrader5 package (e.g. Streamlit Cloud), live mode
+    # can never work — so a missing snapshot config must NOT masquerade as an
+    # "MT5 not installed" error. Say exactly what to configure instead.
+    if mode == "live" and not get_import_diagnostics()["import_ok"]:
+        render_header(connected=False, mode="snapshot")
+        render_error(
+            "Snapshot source not configured.\n"
+            "This app is running where MetaTrader5 is unavailable (Streamlit "
+            "Cloud / Linux), so it reads a published snapshot — but the GitHub "
+            "secrets aren't set.\n\n"
+            "Add these in the app's Settings → Secrets, then Reboot:\n"
+            '    GH_REPO   = "surekaa10/century-dashboard"\n'
+            '    GH_TOKEN  = "<github token>"\n'
+            '    GH_BRANCH = "snapshot"'
+        )
+        if st.button("⟳  Retry"):
+            st.cache_data.clear()
+            st.rerun()
+        return
+
     # ── Load data (snapshot on cloud, live MT5 locally) ──
     if mode == "snapshot":
         repo, token, branch = gh
