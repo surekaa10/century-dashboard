@@ -11,6 +11,9 @@ snapshot.json
 # ── Pusher runtime log ───────────────────────────────────────────────────
 pusher.log
 
+# ── Ready-to-paste Streamlit Cloud secrets (contains a token) ────────────
+streamlit_secrets_to_paste.toml
+
 # ── Python ──────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
