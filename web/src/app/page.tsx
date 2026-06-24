@@ -8,9 +8,10 @@ import PositionsTable from "@/components/PositionsTable";
 import EquityCurve from "@/components/EquityCurve";
 import AllocationDonut from "@/components/AllocationDonut";
 import PositionAnalytics from "@/components/analytics/PositionAnalytics";
+import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
 
 const POLL_MS = 30_000;
-type Tab = "overview" | "analytics";
+type Tab = "overview" | "analytics" | "attribution";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -64,6 +65,7 @@ export default function Page() {
             {([
               ["overview", "Overview"],
               ["analytics", "Position Analytics"],
+              ["attribution", "Attribution"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -96,8 +98,10 @@ export default function Page() {
                 <PositionsTable positions={snapshot!.positions} />
               </div>
             </>
-          ) : (
+          ) : tab === "analytics" ? (
             <PositionAnalytics snapshot={snapshot!} />
+          ) : (
+            <PerformanceAttribution snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
