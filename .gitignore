@@ -8,6 +8,9 @@ Credentials.env
 # ── Snapshot artifact (lives on the `snapshot` branch, not main) ─────────
 snapshot.json
 
+# ── Pusher runtime log ───────────────────────────────────────────────────
+pusher.log
+
 # ── Python ──────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
