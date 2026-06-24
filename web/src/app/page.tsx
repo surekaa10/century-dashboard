@@ -10,9 +10,10 @@ import AllocationDonut from "@/components/AllocationDonut";
 import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
 import RiskAttribution from "@/components/analytics/risk/RiskAttribution";
+import PositionEvolution from "@/components/analytics/evolution/PositionEvolution";
 
 const POLL_MS = 30_000;
-type Tab = "overview" | "analytics" | "attribution" | "risk";
+type Tab = "overview" | "analytics" | "attribution" | "risk" | "evolution";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -68,6 +69,7 @@ export default function Page() {
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
               ["risk", "Risk"],
+              ["evolution", "Evolution"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -104,8 +106,10 @@ export default function Page() {
             <PositionAnalytics snapshot={snapshot!} />
           ) : tab === "attribution" ? (
             <PerformanceAttribution snapshot={snapshot!} />
-          ) : (
+          ) : tab === "risk" ? (
             <RiskAttribution snapshot={snapshot!} />
+          ) : (
+            <PositionEvolution snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
