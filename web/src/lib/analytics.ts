@@ -70,6 +70,110 @@ export interface PortfolioAnalytics {
   totalUnrealized: number;
 }
 
+// ── KPI history reconstruction ─────────────────────────────────────────────────
+// Values the CURRENT holdings at each day's prices (from symbol_rates), honouring
+// each position's open date, to produce a daily portfolio-KPI time series for
+// sparklines / deltas. Does not capture positions closed/trimmed before "now".
+
+export interface KpiPoint {
+  date: string;
+  nPos: number;
+  long: number;
+  short: number;
+  gross: number;
+  net: number;
+  largestPct: number;
+  largestSym: string;
+  avgPct: number;
+  hhi: number;
+  effN: number;
+}
+
+const MONTHS: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+// "15 May 2026  22:43" → "2026-05-15"
+export function parseOpenDate(openTime: string): string {
+  const t = openTime.trim().split(/\s+/);
+  if (t.length < 3) return "";
+  const dd = parseInt(t[0], 10);
+  const mo = MONTHS[t[1].slice(0, 3).toLowerCase()];
+  const yyyy = parseInt(t[2], 10);
+  if (!Number.isFinite(dd) || mo === undefined || !Number.isFinite(yyyy)) return "";
+  return `${yyyy}-${String(mo + 1).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+}
+
+export function buildKpiHistory(positions: Position[], rates: SymbolRates, days = 30): KpiPoint[] {
+  // date axis = last `days` union dates across all held symbols' price history
+  const dateSet = new Set<string>();
+  for (const p of positions) for (const d of rates[p.symbol]?.dates ?? []) dateSet.add(d);
+  let axis = [...dateSet].sort();
+  if (axis.length < 2) return [];
+  axis = axis.slice(Math.max(0, axis.length - days));
+
+  // per-symbol date→close map for ffill
+  const priceMap = new Map<string, Map<string, number>>();
+  for (const p of positions) {
+    if (priceMap.has(p.symbol)) continue;
+    const m = new Map<string, number>();
+    (rates[p.symbol]?.dates ?? []).forEach((d, i) => m.set(d, rates[p.symbol].close[i]));
+    priceMap.set(p.symbol, m);
+  }
+  const openOf = new Map<Position, string>();
+  for (const p of positions) openOf.set(p, parseOpenDate(p.openTime));
+  const carry = new Map<string, number>(); // last known close per symbol
+
+  const out: KpiPoint[] = [];
+  axis.forEach((date, idx) => {
+    const isLast = idx === axis.length - 1;
+    // update carry with any close available on this date
+    for (const p of positions) {
+      const c = priceMap.get(p.symbol)?.get(date);
+      if (c !== undefined) carry.set(p.symbol, c);
+    }
+    let long = 0, short = 0;
+    const mvs: { mv: number; sym: string }[] = [];
+    for (const p of positions) {
+      const opened = openOf.get(p)!;
+      if (opened && opened > date) continue; // not yet open on this day
+      let mv: number;
+      if (isLast) mv = p.marketValue; // anchor today to live values
+      else {
+        const px = carry.get(p.symbol);
+        mv = px !== undefined ? p.volume * px : p.marketValue;
+      }
+      const abs = Math.abs(mv);
+      if (p.direction === "Short") short += abs;
+      else long += abs;
+      mvs.push({ mv: abs, sym: p.symbol });
+    }
+    const gross = long + short || 1;
+    const weights = mvs.map((m) => m.mv / gross);
+    const hhi = weights.reduce((s, w) => s + w * w, 0);
+    let largestPct = 0, largestSym = "";
+    for (const m of mvs) {
+      const w = (m.mv / gross) * 100;
+      if (w > largestPct) { largestPct = w; largestSym = m.sym; }
+    }
+    out.push({
+      date,
+      nPos: mvs.length,
+      long,
+      short,
+      gross: long + short,
+      net: long - short,
+      largestPct,
+      largestSym,
+      avgPct: mvs.length ? 100 / mvs.length : 0,
+      hhi,
+      effN: hhi > 0 ? 1 / hhi : 0,
+    });
+  });
+  return out;
+}
+
 // ── math helpers ──────────────────────────────────────────────────────────────
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);

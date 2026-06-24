@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Snapshot } from "@/lib/types";
-import { buildAnalytics, type Benchmark } from "@/lib/analytics";
-import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
-import { Section, StatCard } from "./ui";
+import { buildAnalytics, buildKpiHistory, type Benchmark } from "@/lib/analytics";
+import { fmtPct, pnlClass } from "@/lib/format";
+import { Section } from "./ui";
+import HoldingsSnapshot from "./HoldingsSnapshot";
 import HoldingsTable from "./HoldingsTable";
 import PositionExplorer from "./PositionExplorer";
 import {
@@ -32,6 +33,12 @@ export default function PositionAnalytics({ snapshot }: { snapshot: Snapshot }) 
     [snapshot.positions, snapshot.symbolRates, benchmark],
   );
 
+  const history = useMemo(
+    () => buildKpiHistory(snapshot.positions, snapshot.symbolRates, 30),
+    [snapshot.positions, snapshot.symbolRates],
+  );
+  const equity = snapshot.account?.equity ?? 0;
+
   if (!snapshot.positions.length) {
     return <div className="px-6 py-10 text-center text-slate-500">No open positions to analyse.</div>;
   }
@@ -41,23 +48,8 @@ export default function PositionAnalytics({ snapshot }: { snapshot: Snapshot }) 
   return (
     <div className="px-6 pb-10">
       {/* 1. Holdings Snapshot */}
-      <Section title="Holdings Snapshot" subtitle="Exposure & concentration at a glance">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-          <StatCard label="Positions" value={String(a.nPositions)} />
-          <StatCard label="Long Exp." value={fmtMoney(a.longExposure, 0)} valueClass="text-emerald-400" />
-          <StatCard label="Short Exp." value={fmtMoney(a.shortExposure, 0)} valueClass="text-rose-400" />
-          <StatCard label="Net Exp." value={fmtSigned(a.netExposure, 0)} valueClass={pnlClass(a.netExposure)} />
-          <StatCard label="Gross Exp." value={fmtMoney(a.grossExposure, 0)} />
-          <StatCard label="Largest Pos." value={`${a.largestWeightPct.toFixed(1)}%`} />
-          <StatCard label="Avg Pos. Size" value={`${a.avgPositionPct.toFixed(1)}%`} />
-          <StatCard label="HHI" value={a.hhi.toFixed(3)} hint={`eff. N ${a.effectiveN.toFixed(1)}`} />
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Portfolio Vol (ann.)" value={`${a.portfolioVolAnnual.toFixed(1)}%`} />
-          <StatCard label="Portfolio VaR (95%, 1d)" value={fmtMoney(a.portfolioVar95, 0)} valueClass="text-amber-400" />
-          <StatCard label="Avg Correlation" value={a.correlation.avg.toFixed(2)} />
-          <StatCard label="Total Unrealized" value={fmtSigned(a.totalUnrealized, 0)} valueClass={pnlClass(a.totalUnrealized)} />
-        </div>
+      <Section title="Holdings Snapshot" subtitle="Portfolio structure, exposure & concentration at a glance">
+        <HoldingsSnapshot analytics={a} history={history} equity={equity} />
       </Section>
 
       {/* 2. Holdings Overview */}
