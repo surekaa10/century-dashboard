@@ -91,6 +91,7 @@ export default function Page() {
                 account={account}
                 positions={snapshot!.positions}
                 todayRealized={snapshot!.todayRealized}
+                deals={snapshot!.deals}
               />
               <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">

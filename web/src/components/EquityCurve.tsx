@@ -26,20 +26,26 @@ export default function EquityCurve({
   const full = useMemo(() => buildEquityFromDeals(deals, currentEquity), [deals, currentEquity]);
   const data = useMemo(() => filterByPeriod(full, period), [full, period]);
 
-  const start = data[0]?.value ?? 0;
-  const end = data[data.length - 1]?.value ?? 0;
-  const up = end >= start;
+  const baseline = data[0]?.value ?? 0;
+  // Normalize to P&L from period start so Y-axis shows gain/loss, not absolute notional
+  const normalized = data.map((d) => ({ date: d.date, value: d.value - baseline }));
+
+  const end = normalized[normalized.length - 1]?.value ?? 0;
+  const up = end >= 0;
   const color = up ? "#10b981" : "#f43f5e";
 
-  const values = data.map((d) => d.value);
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
+  const values = normalized.map((d) => d.value);
+  const lo = Math.min(...values, 0);
+  const hi = Math.max(...values, 0);
   const pad = (hi - lo || Math.abs(hi) * 0.01 || 1) * 0.2;
 
   return (
     <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012] p-4">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-200">Equity Curve</div>
+        <div className="text-sm font-semibold text-slate-200">
+          Equity Curve
+          <span className="ml-2 text-[11px] font-normal text-slate-500">P&L from period start</span>
+        </div>
         <div className="flex gap-1">
           {PERIODS.map((p) => (
             <button
@@ -57,9 +63,9 @@ export default function EquityCurve({
         </div>
       </div>
       <div className="h-[300px]">
-        {data.length > 1 ? (
+        {normalized.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <AreaChart data={normalized} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <defs>
                 <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={color} stopOpacity={0.25} />
@@ -78,10 +84,15 @@ export default function EquityCurve({
                 orientation="right"
                 domain={[lo - pad, hi + pad]}
                 tick={{ fill: "#64748b", fontSize: 10 }}
-                tickFormatter={(v) => "$" + (Number(v) / 1000).toFixed(0) + "K"}
+                tickFormatter={(v) => {
+                  const n = Number(v);
+                  const sign = n >= 0 ? "+" : "";
+                  const abs = Math.abs(n);
+                  return sign + "$" + (abs >= 1000 ? (abs / 1000).toFixed(1) + "K" : abs.toFixed(0));
+                }}
                 axisLine={false}
                 tickLine={false}
-                width={56}
+                width={64}
               />
               <Tooltip
                 contentStyle={{
@@ -91,7 +102,10 @@ export default function EquityCurve({
                   fontSize: 12,
                 }}
                 labelStyle={{ color: "#e2e8f0" }}
-                formatter={(value) => ["$" + fmtMoney(Number(value), 0), "Equity"]}
+                formatter={(value) => {
+                  const n = Number(value);
+                  return [(n >= 0 ? "+" : "") + "$" + fmtMoney(n, 0), "Period P&L"];
+                }}
               />
               <Area
                 type="monotone"
