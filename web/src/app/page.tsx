@@ -11,9 +11,10 @@ import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
 import RiskAttribution from "@/components/analytics/risk/RiskAttribution";
 import PositionEvolution from "@/components/analytics/evolution/PositionEvolution";
+import DiversificationAnalysis from "@/components/analytics/diversification/DiversificationAnalysis";
 
 const POLL_MS = 30_000;
-type Tab = "overview" | "analytics" | "attribution" | "risk" | "evolution";
+type Tab = "overview" | "analytics" | "attribution" | "risk" | "evolution" | "diversification";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -70,6 +71,7 @@ export default function Page() {
               ["attribution", "Attribution"],
               ["risk", "Risk"],
               ["evolution", "Evolution"],
+              ["diversification", "Diversification"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -108,8 +110,10 @@ export default function Page() {
             <PerformanceAttribution snapshot={snapshot!} />
           ) : tab === "risk" ? (
             <RiskAttribution snapshot={snapshot!} />
-          ) : (
+          ) : tab === "evolution" ? (
             <PositionEvolution snapshot={snapshot!} />
+          ) : (
+            <DiversificationAnalysis snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
