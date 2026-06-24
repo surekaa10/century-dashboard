@@ -133,17 +133,17 @@ export function buildMarginAnalytics(
     const impliedLeverage = marginUsed > 0 ? notional / marginUsed : 0;
     const maintenanceMargin = marginUsed * 0.5;
 
-    // Buffer available before stop-out, allocated proportionally
+    // Buffer available before stop-out, allocated proportionally.
+    // distToLiq = posBuffer / notional: the % the price must move against us to hit stop-out.
+    // This correctly handles any contract size since both posBuffer and notional are in $.
     const posBuffer = grossExposure > 0 ? stopOutBuffer * (notional / grossExposure) : 0;
-    const priceMoveToLiq = p.volume > 0 ? posBuffer / p.volume : 0;
+    const distToLiqPct = notional > 0 ? Math.min(999, (posBuffer / notional) * 100) : 0;
+    const priceMoveToLiq = (distToLiqPct / 100) * p.currentPrice;
 
     const liqPrice =
       p.direction === "Long"
         ? p.currentPrice - priceMoveToLiq
         : p.currentPrice + priceMoveToLiq;
-
-    const distToLiqPct =
-      p.currentPrice > 0 ? (priceMoveToLiq / p.currentPrice) * 100 : 0;
 
     const { assetClass, sector } = classify(p.symbol);
 
