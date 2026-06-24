@@ -24,13 +24,22 @@ import os
 import sys
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 
 import data_source
+
+# When stdout is redirected to a file (e.g. the Startup-folder launcher),
+# Python uses the locale encoding (cp1252 on Windows), which can't encode the
+# arrow/middot in the status lines. Force UTF-8 so logging never crashes.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 _HERE = Path(__file__).parent
 load_dotenv(_HERE / ".pusher.env", override=True)        # GH_* credentials
@@ -86,7 +95,7 @@ def push_once() -> None:
     content = data_source.dumps(payload).encode("utf-8")
 
     body = {
-        "message": f"snapshot {datetime.utcnow().isoformat(timespec='seconds')}Z",
+        "message": f"snapshot {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')}Z",
         "content": base64.b64encode(content).decode("ascii"),
         "branch":  BRANCH,
     }
