@@ -9,9 +9,10 @@ import EquityCurve from "@/components/EquityCurve";
 import AllocationDonut from "@/components/AllocationDonut";
 import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
+import RiskAttribution from "@/components/analytics/risk/RiskAttribution";
 
 const POLL_MS = 30_000;
-type Tab = "overview" | "analytics" | "attribution";
+type Tab = "overview" | "analytics" | "attribution" | "risk";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -66,6 +67,7 @@ export default function Page() {
               ["overview", "Overview"],
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
+              ["risk", "Risk"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -100,8 +102,10 @@ export default function Page() {
             </>
           ) : tab === "analytics" ? (
             <PositionAnalytics snapshot={snapshot!} />
-          ) : (
+          ) : tab === "attribution" ? (
             <PerformanceAttribution snapshot={snapshot!} />
+          ) : (
+            <RiskAttribution snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
