@@ -1,0 +1,183 @@
+{
+  "ok": true,
+  "error": "",
+  "generated_at": "2026-06-24T14:30:00Z",
+  "account": {
+    "name": "Century Research (Demo)",
+    "server": "ICMarkets-Demo",
+    "currency": "USD",
+    "leverage": 100,
+    "balance": 481250.00,
+    "credit": 50000.00,
+    "equity": 489834.22,
+    "margin": 87420.00,
+    "free_margin": 402414.22,
+    "margin_level": 560.43
+  },
+  "positions": [
+    {
+      "Symbol": "NVIDA",
+      "Direction": "Long",
+      "Volume": 0.5,
+      "Entry Price": 912.40,
+      "Current Price": 931.20,
+      "Unrealized P&L": 940.00,
+      "Market Value": 46560.00,
+      "Swap": -12.40,
+      "Open Time": "2026-06-10 09:32:00"
+    },
+    {
+      "Symbol": "NVIDA",
+      "Direction": "Long",
+      "Volume": 0.3,
+      "Entry Price": 895.60,
+      "Current Price": 931.20,
+      "Unrealized P&L": 1068.00,
+      "Market Value": 27936.00,
+      "Swap": -7.80,
+      "Open Time": "2026-06-05 14:15:00"
+    },
+    {
+      "Symbol": "MSFT",
+      "Direction": "Long",
+      "Volume": 1.0,
+      "Entry Price": 413.80,
+      "Current Price": 421.50,
+      "Unrealized P&L": 770.00,
+      "Market Value": 42150.00,
+      "Swap": -9.30,
+      "Open Time": "2026-06-12 10:05:00"
+    },
+    {
+      "Symbol": "AMAZON",
+      "Direction": "Long",
+      "Volume": 2.0,
+      "Entry Price": 188.40,
+      "Current Price": 193.20,
+      "Unrealized P&L": 960.00,
+      "Market Value": 38640.00,
+      "Swap": -5.60,
+      "Open Time": "2026-06-15 11:20:00"
+    },
+    {
+      "Symbol": "GOOGLE_A",
+      "Direction": "Short",
+      "Volume": 1.5,
+      "Entry Price": 176.30,
+      "Current Price": 172.80,
+      "Unrealized P&L": 525.00,
+      "Market Value": -25920.00,
+      "Swap": 8.20,
+      "Open Time": "2026-06-18 09:45:00"
+    },
+    {
+      "Symbol": "ELILILLY",
+      "Direction": "Long",
+      "Volume": 0.2,
+      "Entry Price": 812.60,
+      "Current Price": 823.40,
+      "Unrealized P&L": 216.00,
+      "Market Value": 16468.00,
+      "Swap": -4.10,
+      "Open Time": "2026-06-20 13:30:00"
+    },
+    {
+      "Symbol": "BRDCOM",
+      "Direction": "Long",
+      "Volume": 0.15,
+      "Entry Price": 1678.50,
+      "Current Price": 1710.20,
+      "Unrealized P&L": 475.50,
+      "Market Value": 25653.00,
+      "Swap": -6.80,
+      "Open Time": "2026-06-08 09:15:00"
+    },
+    {
+      "Symbol": "GOLD_CASH",
+      "Direction": "Long",
+      "Volume": 0.5,
+      "Entry Price": 2318.40,
+      "Current Price": 2352.80,
+      "Unrealized P&L": 1720.00,
+      "Market Value": 117640.00,
+      "Swap": 2.50,
+      "Open Time": "2026-05-28 10:00:00"
+    },
+    {
+      "Symbol": "GOLD_CASH",
+      "Direction": "Long",
+      "Volume": 0.3,
+      "Entry Price": 2290.00,
+      "Current Price": 2352.80,
+      "Unrealized P&L": 1884.00,
+      "Market Value": 70584.00,
+      "Swap": 1.80,
+      "Open Time": "2026-05-15 14:30:00"
+    },
+    {
+      "Symbol": "RHMG",
+      "Direction": "Short",
+      "Volume": 0.25,
+      "Entry Price": 862.40,
+      "Current Price": 878.60,
+      "Unrealized P&L": -405.00,
+      "Market Value": -21965.00,
+      "Swap": 3.40,
+      "Open Time": "2026-06-19 11:00:00"
+    },
+    {
+      "Symbol": "DRAM",
+      "Direction": "Long",
+      "Volume": 0.4,
+      "Entry Price": 142.30,
+      "Current Price": 145.80,
+      "Unrealized P&L": 140.00,
+      "Market Value": 5832.00,
+      "Swap": -1.20,
+      "Open Time": "2026-06-22 09:30:00"
+    }
+  ],
+  "deals": [
+    {"ticket": 1001, "time": "2026-04-01T09:30:00", "symbol": "MSFT", "type": 0, "entry": 0, "volume": 1.0, "price": 405.20, "profit": 0, "commission": -12.50, "swap": 0},
+    {"ticket": 1002, "time": "2026-04-03T14:20:00", "symbol": "MSFT", "type": 1, "entry": 1, "volume": 1.0, "price": 412.80, "profit": 760.00, "commission": -12.50, "swap": -8.30},
+    {"ticket": 1003, "time": "2026-04-05T10:00:00", "symbol": "NVIDA", "type": 0, "entry": 0, "volume": 0.5, "price": 870.00, "profit": 0, "commission": -18.00, "swap": 0},
+    {"ticket": 1004, "time": "2026-04-08T11:30:00", "symbol": "NVIDA", "type": 1, "entry": 1, "volume": 0.5, "price": 888.50, "profit": 925.00, "commission": -18.00, "swap": -15.20},
+    {"ticket": 1005, "time": "2026-04-10T09:45:00", "symbol": "AMAZON", "type": 0, "entry": 0, "volume": 2.0, "price": 182.30, "profit": 0, "commission": -8.00, "swap": 0},
+    {"ticket": 1006, "time": "2026-04-15T14:00:00", "symbol": "AMAZON", "type": 1, "entry": 1, "volume": 2.0, "price": 186.10, "profit": 760.00, "commission": -8.00, "swap": -4.50},
+    {"ticket": 1007, "time": "2026-04-18T10:15:00", "symbol": "GOLD_CASH", "type": 0, "entry": 0, "volume": 0.2, "price": 2280.00, "profit": 0, "commission": -5.00, "swap": 0},
+    {"ticket": 1008, "time": "2026-04-22T13:30:00", "symbol": "GOLD_CASH", "type": 1, "entry": 1, "volume": 0.2, "price": 2310.00, "profit": 600.00, "commission": -5.00, "swap": 3.20},
+    {"ticket": 1009, "time": "2026-04-25T09:30:00", "symbol": "GOOGLE_A", "type": 1, "entry": 0, "volume": 1.0, "price": 172.50, "profit": 0, "commission": -6.00, "swap": 0},
+    {"ticket": 1010, "time": "2026-04-28T15:00:00", "symbol": "GOOGLE_A", "type": 0, "entry": 1, "volume": 1.0, "price": 169.80, "profit": 270.00, "commission": -6.00, "swap": 4.10},
+    {"ticket": 1011, "time": "2026-05-02T09:30:00", "symbol": "ELILILLY", "type": 0, "entry": 0, "volume": 0.3, "price": 798.40, "profit": 0, "commission": -9.00, "swap": 0},
+    {"ticket": 1012, "time": "2026-05-07T11:00:00", "symbol": "ELILILLY", "type": 1, "entry": 1, "volume": 0.3, "price": 812.00, "profit": 408.00, "commission": -9.00, "swap": -6.80},
+    {"ticket": 1013, "time": "2026-05-09T10:30:00", "symbol": "BRDCOM", "type": 0, "entry": 0, "volume": 0.1, "price": 1640.00, "profit": 0, "commission": -14.00, "swap": 0},
+    {"ticket": 1014, "time": "2026-05-14T14:15:00", "symbol": "BRDCOM", "type": 1, "entry": 1, "volume": 0.1, "price": 1665.00, "profit": 250.00, "commission": -14.00, "swap": -9.40},
+    {"ticket": 1015, "time": "2026-05-16T09:45:00", "symbol": "MSFT", "type": 0, "entry": 0, "volume": 1.5, "price": 409.60, "profit": 0, "commission": -18.00, "swap": 0},
+    {"ticket": 1016, "time": "2026-05-20T13:00:00", "symbol": "MSFT", "type": 1, "entry": 1, "volume": 1.5, "price": 418.20, "profit": 1290.00, "commission": -18.00, "swap": -11.50},
+    {"ticket": 1017, "time": "2026-05-22T10:00:00", "symbol": "NVIDA", "type": 0, "entry": 0, "volume": 0.8, "price": 875.30, "profit": 0, "commission": -22.00, "swap": 0},
+    {"ticket": 1018, "time": "2026-05-28T14:30:00", "symbol": "NVIDA", "type": 1, "entry": 1, "volume": 0.8, "price": 864.10, "profit": -896.00, "commission": -22.00, "swap": -18.60},
+    {"ticket": 1019, "time": "2026-05-30T09:15:00", "symbol": "RHMG", "type": 1, "entry": 0, "volume": 0.3, "price": 870.00, "profit": 0, "commission": -8.00, "swap": 0},
+    {"ticket": 1020, "time": "2026-06-04T11:30:00", "symbol": "RHMG", "type": 0, "entry": 1, "volume": 0.3, "price": 855.40, "profit": 438.00, "commission": -8.00, "swap": 5.20},
+    {"ticket": 1021, "time": "2026-06-06T10:00:00", "symbol": "AMAZON", "type": 0, "entry": 0, "volume": 3.0, "price": 185.20, "profit": 0, "commission": -12.00, "swap": 0},
+    {"ticket": 1022, "time": "2026-06-10T14:00:00", "symbol": "AMAZON", "type": 1, "entry": 1, "volume": 3.0, "price": 189.60, "profit": 1320.00, "commission": -12.00, "swap": -7.30},
+    {"ticket": 1023, "time": "2026-06-12T09:30:00", "symbol": "GOLD_CASH", "type": 0, "entry": 0, "volume": 0.4, "price": 2330.00, "profit": 0, "commission": -10.00, "swap": 0},
+    {"ticket": 1024, "time": "2026-06-16T13:45:00", "symbol": "GOLD_CASH", "type": 1, "entry": 1, "volume": 0.4, "price": 2348.00, "profit": 720.00, "commission": -10.00, "swap": 6.40},
+    {"ticket": 1025, "time": "2026-06-18T10:15:00", "symbol": "DRAM", "type": 0, "entry": 0, "volume": 1.0, "price": 140.80, "profit": 0, "commission": -4.00, "swap": 0},
+    {"ticket": 1026, "time": "2026-06-20T15:00:00", "symbol": "DRAM", "type": 1, "entry": 1, "volume": 1.0, "price": 144.30, "profit": 350.00, "commission": -4.00, "swap": -2.10}
+  ],
+  "today_realized": 1070.00,
+  "symbol_rates": {
+    "NVIDA": {
+      "index": ["2026-04-01","2026-04-02","2026-04-03","2026-04-04","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-11","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-22","2026-04-23","2026-04-24","2026-04-25","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-27","2026-05-28","2026-05-29","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-06","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-13","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-23","2026-06-24"],
+      "Close": [870,875,882,878,885,891,888,895,902,898,905,912,908,915,920,918,924,928,922,917,921,930,935,928,932,940,945,938,942,948,955,948,940,935,928,932,940,945,938,902,910,918,914,921,926,920,928,935,929,924,930,935,931]
+    },
+    "MSFT": {
+      "index": ["2026-04-01","2026-04-07","2026-04-14","2026-04-21","2026-04-28","2026-05-05","2026-05-12","2026-05-19","2026-05-26","2026-06-02","2026-06-09","2026-06-16","2026-06-23"],
+      "Close": [405,408,412,409,415,418,422,420,416,413,417,421,421]
+    },
+    "GOLD_CASH": {
+      "index": ["2026-04-01","2026-04-07","2026-04-14","2026-04-21","2026-04-28","2026-05-05","2026-05-12","2026-05-19","2026-05-26","2026-06-02","2026-06-09","2026-06-16","2026-06-23"],
+      "Close": [2282,2295,2308,2318,2325,2332,2340,2335,2342,2350,2345,2352,2352]
+    }
+  }
+}

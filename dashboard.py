@@ -634,7 +634,7 @@ def render_hero(metrics: dict) -> None:
         <div class="hero-eyebrow">Portfolio Value</div>
         <div class="hero-value-row">
             <div class="hero-pv">${pv:,.0f}</div>
-            <div class="{ret_cls}">{arrow}&nbsp;{f_sign}${floating:,.2f}&nbsp;floating&nbsp;&nbsp;{roac_sgn}{roac:.2f}%&nbsp;RoAC</div>
+            <div class="{ret_cls}">{arrow}&nbsp;{f_sign}${floating:,.2f}&nbsp;unrealized&nbsp;&nbsp;{roac_sgn}{roac:.2f}%&nbsp;RoAC</div>
         </div>
         <div class="hero-chips">
             <div>
@@ -646,7 +646,7 @@ def render_hero(metrics: dict) -> None:
                 <div class="hero-chip-value">${allocated:,.0f}</div>
             </div>
             <div>
-                <div class="hero-chip-label">Floating P&amp;L</div>
+                <div class="hero-chip-label">Unrealized P&amp;L</div>
                 <div class="hero-chip-value" style="color:{_chip(floating)}">{_sgn(floating)}${floating:,.2f}</div>
             </div>
             <div>
@@ -683,7 +683,7 @@ def render_portfolio_overview(
     render_hero(metrics)
 
     # Equity curve — MT5 deal history first, yfinance fallback
-    _ana_section("Equity Curve")
+    _ana_section("Account Equity")
 
     equity_df, is_real = get_equity_curve(
         deals_df        = deals_df if deals_df is not None else pd.DataFrame(),
@@ -761,8 +761,8 @@ def render_portfolio_overview(
             config={"displayModeBar": False},
         )
 
-    # Holdings table + expandable fills
-    _ana_section("Holdings")
+    # Holdings table (aggregated by symbol) + expandable fills
+    _ana_section("Holdings — Avg Cost · P&L  (expand a row to see fills)")
     render_holdings_table(agg_df)
     render_position_details(positions_df, agg_df)
 
@@ -1072,17 +1072,21 @@ def render_holdings_table(agg_df: pd.DataFrame) -> None:
         pp_sign = "+" if r["P&L %"] > 0 else ""
         fills   = f'{int(r["Fill Count"])} fill{"s" if r["Fill Count"] > 1 else ""}'
 
+        px_chg   = r['Current Price'] - r['Avg Cost']
+        px_chg_cls = _pnl_cls(px_chg)
+        px_sign    = "+" if px_chg >= 0 else ""
+
         rows_html += f"""
         <tr>
             <td><span class="sym">{r['Symbol']}</span>
                 <span style="margin-left:6px;font-size:9px;color:#334155">{fills}</span></td>
             <td style="text-align:left">{_dir_badge_ana(r['Direction'])}</td>
-            <td>{r['Total Qty']:,.4f}</td>
-            <td>{_fmt(r['Avg Cost'])}</td>
-            <td>{_fmt(r['Current Price'])}</td>
-            <td>{_fmt(r['Market Value'])}</td>
+            <td style="font-weight:600;color:#e2e8f0">{_fmt(r['Avg Cost'])}</td>
+            <td>{_fmt(r['Current Price'])}&nbsp;<span style="font-size:10px" class="{px_chg_cls}">({px_sign}{_fmt(px_chg)})</span></td>
             <td class="{pnl_cls}">{pnl_str}</td>
             <td class="{pp_cls}">{pp_sign}{r['P&L %']:.2f}%</td>
+            <td>{r['Total Qty']:,.4f}</td>
+            <td>{_fmt(r['Market Value'])}</td>
             <td>{r['Weight %']:.2f}%</td>
         </tr>"""
 
@@ -1092,12 +1096,12 @@ def render_holdings_table(agg_df: pd.DataFrame) -> None:
             <thead><tr>
                 <th>Symbol</th>
                 <th style="text-align:left">Direction</th>
-                <th>Total Qty</th>
-                <th>Avg Cost</th>
+                <th>Avg Cost / Share</th>
                 <th>Current Price</th>
-                <th>Market Value</th>
                 <th>Unrealized P&amp;L</th>
                 <th>P&amp;L %</th>
+                <th>Total Qty</th>
+                <th>Market Value</th>
                 <th>Weight %</th>
             </tr></thead>
             <tbody>{rows_html}</tbody>
@@ -1107,19 +1111,19 @@ def render_holdings_table(agg_df: pd.DataFrame) -> None:
 
 
 def render_position_details(raw_df: pd.DataFrame, agg_df: pd.DataFrame) -> None:
-    """Expandable per-symbol drill-down showing individual fills."""
-    _ana_section("Position Details — Expand a Symbol to See Individual Fills")
+    """Expandable per-symbol drill-down showing individual trade fills."""
+    _ana_section("Trade Detail — expand a symbol to see individual fills")
 
     for _, row in agg_df.iterrows():
         symbol = row["Symbol"]
-        fills  = raw_df[raw_df["Symbol"] == symbol].copy()
+        fills  = raw_df[raw_df["Symbol"].astype(str).str.strip() == symbol].copy()
         pnl    = row["Unrealized P&L"]
         sign   = "+" if pnl >= 0 else ""
         label  = (
             f"{symbol}   ·   "
+            f"Avg ${row['Avg Cost']:,.2f}   ·   "
             f"{int(row['Fill Count'])} fill{'s' if row['Fill Count'] > 1 else ''}   ·   "
-            f"{sign}{_fmt(pnl)}   ({'+' if row['P&L %'] > 0 else ''}{row['P&L %']:.2f}%)   ·   "
-            f"{row['Weight %']:.2f}% of portfolio"
+            f"{sign}{_fmt(pnl)}   ({'+' if row['P&L %'] > 0 else ''}{row['P&L %']:.2f}%)"
         )
 
         with st.expander(label, expanded=False):
@@ -1175,7 +1179,7 @@ def render_position_analytics(raw_df: pd.DataFrame, symbol_rates: dict = None) -
     render_exposure_summary(summary)
 
     # ── Aggregated holdings table ──
-    _ana_section("Holdings — Aggregated by Symbol")
+    _ana_section("Holdings — Avg Cost · P&L  (expand a row to see fills)")
     render_holdings_table(agg_df)
 
     # ── Per-symbol drill-down ──

@@ -266,26 +266,53 @@ function benchmarkReturnsByDate(b?: Benchmark): Map<string, number> {
   return out;
 }
 
+// ── symbol aggregation ────────────────────────────────────────────────────────
+// Collapse multiple fills of the same instrument into one position row.
+// entryPrice = volume-weighted average; all other $ fields are summed.
+
+function aggregateBySymbol(positions: Position[]): Position[] {
+  const map = new Map<string, Position>();
+  for (const p of positions) {
+    const key = p.symbol.trim();
+    const ex = map.get(key);
+    if (!ex) {
+      map.set(key, { ...p, symbol: key });
+    } else {
+      const totalVol = ex.volume + p.volume;
+      ex.entryPrice   = (ex.entryPrice * ex.volume + p.entryPrice * p.volume) / totalVol;
+      ex.volume        = totalVol;
+      ex.marketValue  += p.marketValue;
+      ex.unrealizedPnl += p.unrealizedPnl;
+      ex.swap          += p.swap;
+      // keep the earliest open time (first fill encountered)
+    }
+  }
+  return [...map.values()];
+}
+
 // ── main ────────────────────────────────────────────────────────────────────
 
 export function buildAnalytics(positions: Position[], rates: SymbolRates, benchmark?: Benchmark): PortfolioAnalytics {
-  const grossExposure = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
-  const longExposure = positions.filter((p) => p.direction === "Long").reduce((s, p) => s + Math.abs(p.marketValue), 0);
-  const shortExposure = positions.filter((p) => p.direction === "Short").reduce((s, p) => s + Math.abs(p.marketValue), 0);
+  // Aggregate multi-fill positions into one row per instrument
+  const agg = aggregateBySymbol(positions);
 
-  const symbols = positions.map((p) => p.symbol);
+  const grossExposure = agg.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
+  const longExposure = agg.filter((p) => p.direction === "Long").reduce((s, p) => s + Math.abs(p.marketValue), 0);
+  const shortExposure = agg.filter((p) => p.direction === "Short").reduce((s, p) => s + Math.abs(p.marketValue), 0);
+
+  const symbols = agg.map((p) => p.symbol);
   const { returns } = alignReturns(rates, symbols);
   const benchMap = benchmarkReturnsByDate(benchmark);
 
   // signed weights (long +, short −), Σ|w| = 1
   const signedW: Record<string, number> = {};
-  for (const p of positions) {
+  for (const p of agg) {
     const w = (Math.abs(p.marketValue) / grossExposure) * (p.direction === "Short" ? -1 : 1);
-    signedW[p.symbol] = (signedW[p.symbol] ?? 0) + w;
+    signedW[p.symbol] = w;
   }
 
   // covariance matrix over symbols that have return history (daily)
-  const histSyms = [...new Set(positions.map((p) => p.symbol))].filter((s) => returns[s]?.length >= 2);
+  const histSyms = symbols.filter((s) => returns[s]?.length >= 2);
   const minLen = histSyms.length ? Math.min(...histSyms.map((s) => returns[s].length)) : 0;
   const trimmed: Record<string, number[]> = {};
   for (const s of histSyms) trimmed[s] = returns[s].slice(returns[s].length - minLen);
@@ -311,7 +338,7 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
     sigmaW[a] = acc; // (Σw)_a
   }
 
-  const enriched: Enriched[] = positions.map((p) => {
+  const enriched: Enriched[] = agg.map((p) => {
     const c = classify(p.symbol);
     const basis = Math.abs(p.entryPrice * p.volume);
     const series = rates[p.symbol];
@@ -406,7 +433,7 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
 
   return {
     positions: enriched,
-    nPositions: positions.length,
+    nPositions: agg.length,   // unique instruments, not raw fills
     longExposure,
     shortExposure,
     netExposure: longExposure - shortExposure,

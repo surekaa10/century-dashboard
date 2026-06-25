@@ -62,6 +62,19 @@ export function getConfig() {
   return { repo, token, branch, path };
 }
 
+export function normalizePayload(payload: Record<string, unknown>): Snapshot {
+  return {
+    ok: Boolean((payload.ok as boolean) ?? true),
+    error: String(payload.error ?? ""),
+    generatedAt: String(payload.generated_at ?? ""),
+    account: normalizeAccount((payload.account as Record<string, unknown>) ?? null),
+    positions: normalizePositions((payload.positions as Record<string, unknown>[]) ?? []),
+    deals: normalizeDeals((payload.deals as Record<string, unknown>[]) ?? []),
+    todayRealized: num(payload.today_realized),
+    symbolRates: normalizeRates((payload.symbol_rates as Record<string, { index?: string[]; Close?: number[] }>) ?? {}),
+  };
+}
+
 export async function fetchSnapshot(): Promise<Snapshot> {
   const { repo, token, branch, path } = getConfig();
   if (!repo || !token) {
@@ -85,16 +98,7 @@ export async function fetchSnapshot(): Promise<Snapshot> {
   }
 
   const payload = JSON.parse(await res.text());
-  return {
-    ok: Boolean(payload.ok ?? true),
-    error: String(payload.error ?? ""),
-    generatedAt: String(payload.generated_at ?? ""),
-    account: normalizeAccount(payload.account ?? null),
-    positions: normalizePositions(payload.positions ?? []),
-    deals: normalizeDeals(payload.deals ?? []),
-    todayRealized: num(payload.today_realized),
-    symbolRates: normalizeRates(payload.symbol_rates ?? {}),
-  };
+  return normalizePayload(payload as Record<string, unknown>);
 }
 
 function normalizeRates(raw: Record<string, { index?: string[]; Close?: number[] }>): SymbolRates {
