@@ -15,11 +15,12 @@ import DiversificationAnalysis from "@/components/analytics/diversification/Dive
 import FactorExposure from "@/components/analytics/factors/FactorExposure";
 import StressTesting from "@/components/analytics/stress/StressTesting";
 import MarginDashboard from "@/components/margin/MarginDashboard";
+import DrawdownAnalytics from "@/components/analytics/drawdown/DrawdownAnalytics";
 
 const POLL_MS = 30_000;
 type Tab =
   | "overview" | "analytics" | "attribution" | "risk" | "evolution"
-  | "diversification" | "factors" | "stress" | "margin";
+  | "diversification" | "factors" | "stress" | "margin" | "drawdown";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -80,6 +81,7 @@ export default function Page() {
               ["factors", "Factors"],
               ["stress", "Stress"],
               ["margin", "Margin & Leverage"],
+              ["drawdown", "Drawdown"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -127,8 +129,10 @@ export default function Page() {
             <FactorExposure snapshot={snapshot!} />
           ) : tab === "stress" ? (
             <StressTesting snapshot={snapshot!} />
-          ) : (
+          ) : tab === "margin" ? (
             <MarginDashboard snapshot={snapshot!} />
+          ) : (
+            <DrawdownAnalytics snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
