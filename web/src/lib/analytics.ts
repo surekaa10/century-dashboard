@@ -159,7 +159,7 @@ export function buildKpiHistory(positions: Position[], rates: SymbolRates, days 
     }
     out.push({
       date,
-      nPos: mvs.length,
+      nPos: new Set(mvs.map((m) => m.sym)).size, // unique instruments, not raw fills
       long,
       short,
       gross: long + short,
