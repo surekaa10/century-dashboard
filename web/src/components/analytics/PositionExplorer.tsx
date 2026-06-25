@@ -66,7 +66,8 @@ export default function PositionExplorer({ rows }: { rows: Enriched[] }) {
 
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-wider text-cyan-400/70">Performance</div>
-          <Row label="Total Return" value={fmtPct(p.totalReturnPct)} cls={pnlClass(p.totalReturnPct)} />
+          <Row label="Total Return (since cost)" value={fmtPct(p.returnPct)} cls={pnlClass(p.returnPct)} />
+          <Row label="Price Δ (hist. window)" value={fmtPct(p.totalReturnPct)} cls={pnlClass(p.totalReturnPct)} />
           <Row label="Daily Return" value={fmtPct(p.dailyReturnPct)} cls={pnlClass(p.dailyReturnPct)} />
           <Row label="Monthly Return" value={fmtPct(p.monthlyReturnPct)} cls={pnlClass(p.monthlyReturnPct)} />
           <Row label="Sharpe (ann.)" value={num(p.sharpe)} cls={pnlClass(p.sharpe)} />

@@ -27,7 +27,8 @@ export interface Enriched {
   sector: string;
   industry: string;
   weight: number;          // |mv| / gross, as %
-  pnlPct: number;          // unrealized / basis, as %
+  pnlPct: number;          // unrealized P&L / cost basis, as % (P&L-implied return)
+  returnPct: number;       // TRUE since-purchase return = (current/entry − 1) × sign, %
   dailyReturnPct: number;
   dailyPnl: number;
   volAnnual: number;       // %
@@ -375,6 +376,12 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
     const componentVar = portVolDaily > 0 ? (Z95 * w * sigmaW[p.symbol] * grossExposure) / portVolDaily : 0;
     const contribToVolPct = portfolioVar95 > 0 ? (componentVar / portfolioVar95) * 100 : 0;
     const pnlPct = basis > 0 ? (p.unrealizedPnl / basis) * 100 : 0;
+    // True investment return from average cost. Instrument-agnostic and unit-free:
+    // (current/entry − 1) cancels any contract-size/FX multiplier, so it equals
+    // unrealizedPnl / costBasis whenever MT5's calibration is 1 (i.e. account-ccy
+    // instruments). Short positions gain when price falls, hence the sign flip.
+    const dir = p.direction === "Short" ? -1 : 1;
+    const returnPct = p.entryPrice > 0 ? (p.currentPrice / p.entryPrice - 1) * 100 * dir : 0;
 
     return {
       symbol: p.symbol,
@@ -391,6 +398,7 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
       industry: c.industry,
       weight: (Math.abs(p.marketValue) / grossExposure) * 100,
       pnlPct,
+      returnPct,
       dailyReturnPct,
       dailyPnl: (dailyReturnPct / 100) * p.marketValue,
       volAnnual,
@@ -449,4 +457,71 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
     correlation: { symbols: corrSyms, matrix, avg: cnt ? sum / cnt : 0, highest, lowest },
     totalUnrealized: enriched.reduce((s, e) => s + e.unrealizedPnl, 0),
   };
+}
+
+// ── Return validation & MT5 reconciliation ─────────────────────────────────────
+// Audits every holding's displayed return against the underlying portfolio data.
+// The treemap shows `returnPct` (true price return from average cost). We also
+// derive the P&L-implied return (unrealizedPnl / costBasis) and flag any holding
+// where the two diverge beyond `tol` — that gap is an FX/contract-multiplier
+// signature, not a stock-return error — plus structural data anomalies.
+
+export interface PositionValidation {
+  symbol: string;
+  avgCost: number;
+  currentPrice: number;
+  qty: number;
+  costBasis: number;       // |entry × qty|, quote-currency units
+  marketValue: number;     // |qty × current|, as supplied by MT5
+  unrealizedPnl: number;   // MT5's authoritative P&L (account currency)
+  priceReturn: number;     // displayed: (current/entry − 1) × sign, %
+  pnlReturn: number;       // unrealizedPnl / costBasis, %  (MT5-P&L implied)
+  diff: number;            // priceReturn − pnlReturn, percentage points
+  reconciles: boolean;     // |diff| ≤ tol
+  flags: string[];         // anomaly descriptions
+  ok: boolean;             // no hard-error flags
+}
+
+export interface ValidationReport {
+  rows: PositionValidation[];
+  verified: number;        // ok && reconciles
+  flagged: number;
+  allOk: boolean;
+  tol: number;
+  maxReturnPct: number;
+}
+
+export function validatePositions(
+  rows: Enriched[],
+  { tol = 0.1, maxReturnPct = 300 }: { tol?: number; maxReturnPct?: number } = {},
+): ValidationReport {
+  const seen = new Set<string>();
+  const out: PositionValidation[] = rows.map((r) => {
+    const qty = r.volume;
+    const avgCost = r.entryPrice;
+    const costBasis = Math.abs(avgCost * qty);
+    const marketValue = Math.abs(r.marketValue);
+    const priceReturn = r.returnPct;
+    const pnlReturn = costBasis > 0 ? (r.unrealizedPnl / costBasis) * 100 : NaN;
+    const diff = Number.isFinite(pnlReturn) ? priceReturn - pnlReturn : 0;
+
+    const flags: string[] = [];
+    let hard = false;
+    if (!(avgCost > 0)) { flags.push("Average cost is zero or missing"); hard = true; }
+    if (!(r.currentPrice > 0)) { flags.push("Missing / invalid market price"); hard = true; }
+    if (!(qty > 0)) { flags.push("Non-positive quantity"); hard = true; }
+    if (!Number.isFinite(priceReturn)) { flags.push("Return is not a finite number"); hard = true; }
+    if (seen.has(r.symbol)) { flags.push("Duplicate position row"); hard = true; }
+    seen.add(r.symbol);
+    if (Number.isFinite(priceReturn) && Math.abs(priceReturn) > maxReturnPct)
+      flags.push(`Return exceeds ±${maxReturnPct}%`);
+    const reconciles = Number.isFinite(pnlReturn) && Math.abs(diff) <= tol;
+    if (!reconciles && Number.isFinite(pnlReturn))
+      flags.push(`P&L-implied return differs by ${diff.toFixed(2)}pp (FX/contract multiplier)`);
+
+    return { symbol: r.symbol, avgCost, currentPrice: r.currentPrice, qty, costBasis, marketValue, unrealizedPnl: r.unrealizedPnl, priceReturn, pnlReturn, diff, reconciles, flags, ok: !hard };
+  });
+
+  const verified = out.filter((v) => v.ok && v.reconciles).length;
+  return { rows: out, verified, flagged: out.length - verified, allOk: verified === out.length, tol, maxReturnPct };
 }
