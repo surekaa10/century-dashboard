@@ -2,10 +2,12 @@
 
 import { useMemo } from "react";
 import {
-  Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Treemap, XAxis, YAxis,
+  Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import type { Enriched, PortfolioAnalytics, CorrelationResult } from "@/lib/analytics";
-import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
+import { fmtSigned, fmtPct, pnlClass } from "@/lib/format";
+
+export { HoldingsTreemap } from "./HoldingsTreemap";
 
 const GREEN = "#10b981";
 const RED = "#f43f5e";
@@ -68,74 +70,6 @@ export function WinnersLosers({ rows }: { rows: Enriched[] }) {
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <RankTable title="Top Winners" items={winners} accent="text-emerald-400" />
       <RankTable title="Top Losers" items={losers} accent="text-rose-400" />
-    </div>
-  );
-}
-
-// ── Holdings Treemap ──────────────────────────────────────────────────────────
-
-interface TreeLeaf { name: string; size: number; ret: number; mv: number; sector: string; pnl: number; }
-
-function TreemapCell(props: Record<string, unknown>) {
-  const { x, y, width, height, name, ret, mag } = props as {
-    x: number; y: number; width: number; height: number; name?: string; ret?: number; mag?: number;
-  };
-  if (width <= 0 || height <= 0) return null;
-  const leaf = typeof ret === "number";
-  const fill = leaf ? divergingColor(ret!, (mag as number) || 1) : "rgba(255,255,255,0.02)";
-  return (
-    <g>
-      <rect x={x} y={y} width={width} height={height} fill={fill} stroke="#060a14" strokeWidth={1} />
-      {leaf && width > 44 && height > 20 && (
-        <text x={x + 4} y={y + 14} fill="#e2e8f0" fontSize={10} fontFamily="monospace">
-          {name}
-        </text>
-      )}
-    </g>
-  );
-}
-
-export function HoldingsTreemap({ rows }: { rows: Enriched[] }) {
-  const { data, mag } = useMemo(() => {
-    const bySector = new Map<string, TreeLeaf[]>();
-    let m = 1;
-    for (const r of rows) {
-      m = Math.max(m, Math.abs(r.totalReturnPct || r.pnlPct));
-      const leaf: TreeLeaf = {
-        name: r.symbol,
-        size: Math.abs(r.marketValue),
-        ret: r.totalReturnPct || r.pnlPct,
-        mv: r.marketValue,
-        sector: r.sector,
-        pnl: r.unrealizedPnl,
-      };
-      if (!bySector.has(r.sector)) bySector.set(r.sector, []);
-      bySector.get(r.sector)!.push(leaf);
-    }
-    const d = [...bySector.entries()].map(([sector, children]) => ({ name: sector, children }));
-    return { data: d, mag: m };
-  }, [rows]);
-
-  const withMag = data.map((s) => ({ ...s, children: s.children.map((c) => ({ ...c, mag })) }));
-
-  return (
-    <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012] p-4">
-      <div className="mb-1 text-sm font-semibold text-slate-200">Holdings Treemap</div>
-      <div className="mb-2 text-[11px] text-slate-500">Sector → Symbol · size = market value · colour = total return</div>
-      <div className="h-[360px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <Treemap data={withMag} dataKey="size" stroke="#060a14" content={<TreemapCell />} isAnimationActive={false}>
-            <Tooltip
-              contentStyle={TT}
-              formatter={(_value, _name, item) => {
-                const p = (item as { payload?: TreeLeaf } | undefined)?.payload;
-                if (!p) return ["", ""];
-                return [`MV $${fmtMoney(p.mv, 0)} · ${fmtPct(p.ret)} · P&L ${fmtSigned(p.pnl, 0)}`, `${p.name} (${p.sector})`];
-              }}
-            />
-          </Treemap>
-        </ResponsiveContainer>
-      </div>
     </div>
   );
 }
