@@ -35,8 +35,8 @@ export default function StressTesting({ snapshot }: { snapshot: Snapshot }) {
           <StatCard label="Worst Scenario" value={worst ? worst.name.replace(/\s\d{4}.*/, "") : "—"} hint={worst ? fmtPct(worst.portRet * 100) : ""} valueClass="text-rose-400" />
           <StatCard label="Expected Loss %" value={worst ? fmtPct(worst.portRet * 100) : "—"} valueClass="text-rose-400" />
           <StatCard label="Expected Loss $" value={worst ? `$${fmtCompact(Math.abs(worst.loss))}` : "—"} valueClass="text-rose-400" />
-          <StatCard label="Stress VaR (95%)" value={fmtPct(d.monteCarlo.var95 * 100)} valueClass="text-amber-400" />
-          <StatCard label="Tail Risk Score" value={d.tailRiskScore.toFixed(0)} valueClass={d.tailRiskScore > 50 ? "text-rose-400" : "text-emerald-400"} />
+          <StatCard label="Stress VaR (95%)" info="stress-var" value={fmtPct(d.monteCarlo.var95 * 100)} valueClass="text-amber-400" />
+          <StatCard label="Tail Risk Score" info="tail-risk" value={d.tailRiskScore.toFixed(0)} valueClass={d.tailRiskScore > 50 ? "text-rose-400" : "text-emerald-400"} />
           <StatCard label="Resilience Score" value={`${d.resilience.total.toFixed(0)}/100`} hint={d.resilience.label} />
           <StatCard label="Most Vulnerable Sector" value={d.worstSectors[0]?.sector ?? "—"} />
           <StatCard label="Most Vulnerable Position" value={worst?.worstPos ?? "—"} />
@@ -47,7 +47,7 @@ export default function StressTesting({ snapshot }: { snapshot: Snapshot }) {
         <div className="rounded-lg border border-cyan-500/15 bg-cyan-500/[0.03] p-4 text-sm leading-relaxed text-slate-200">{d.summary}</div>
       </Section>
 
-      <Section title="Historical Scenario Analysis" subtitle="Predicted impact = portfolio factor betas × each crisis's characteristic shocks">
+      <Section title="Historical Scenario Analysis" info="historical-scenarios" subtitle="Predicted impact = portfolio factor betas × each crisis's characteristic shocks">
         <HistoricalTable d={d} />
         <div className="mt-4"><ScenarioRanking d={d} /></div>
       </Section>

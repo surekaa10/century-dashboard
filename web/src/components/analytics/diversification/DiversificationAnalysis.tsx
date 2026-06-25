@@ -72,13 +72,13 @@ export default function DiversificationAnalysis({ snapshot }: { snapshot: Snapsh
 
       <Section title="Diversification Score"><ScoreGauge score={d.score} /></Section>
 
-      <Section title="Correlation Analysis" right={<span className={`rounded border border-white/10 px-2 py-0.5 text-xs ${cc.cls}`}>{cc.t} · ρ̄ {d.avgCorr.toFixed(2)}</span>}>
+      <Section title="Correlation Analysis" info="correlation-matrix" right={<span className={`rounded border border-white/10 px-2 py-0.5 text-xs ${cc.cls}`}>{cc.t} · ρ̄ {d.avgCorr.toFixed(2)}</span>}>
         <Extremes data={d} />
         <div className="mt-4"><CorrelationHeatmap data={d} /></div>
         <div className="mt-4"><ClusterTable data={d} /></div>
       </Section>
 
-      <Section title="Effective Number of Bets" subtitle="Correlation-adjusted — not a simple position count">
+      <Section title="Effective Number of Bets" info="effective-bets" subtitle="Correlation-adjusted — not a simple position count">
         <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012] p-4">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div><div className="text-[10px] uppercase text-slate-500">Actual Holdings</div><div className="font-mono text-2xl text-slate-100">{d.nHoldings}</div></div>
@@ -89,7 +89,7 @@ export default function DiversificationAnalysis({ snapshot }: { snapshot: Snapsh
         </div>
       </Section>
 
-      <Section title="Diversification Ratio" right={<span className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-300">{drClass(d.diversificationRatio)}</span>}>
+      <Section title="Diversification Ratio" info="diversification-ratio" right={<span className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-300">{drClass(d.diversificationRatio)}</span>}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Current" value={d.diversificationRatio.toFixed(2)} />
           <StatCard label="Window Start" value={(h.divRatio[0] ?? d.diversificationRatio).toFixed(2)} />
@@ -100,7 +100,7 @@ export default function DiversificationAnalysis({ snapshot }: { snapshot: Snapsh
 
       <Section title="Factor Overlap Analysis"><FactorTable data={d} /></Section>
 
-      <Section title="Concentration Analysis" right={<span className={`rounded border px-2 py-0.5 text-xs ${d.hhi < 0.1 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : d.hhi < 0.18 ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-rose-500/30 bg-rose-500/10 text-rose-400"}`}>{concLabel}</span>}>
+      <Section title="Concentration Analysis" info="hhi" right={<span className={`rounded border px-2 py-0.5 text-xs ${d.hhi < 0.1 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : d.hhi < 0.18 ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-rose-500/30 bg-rose-500/10 text-rose-400"}`}>{concLabel}</span>}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <StatCard label="HHI" value={d.hhi.toFixed(3)} />
           <StatCard label="Effective Holdings" value={d.effectiveRiskContributors.toFixed(1)} />

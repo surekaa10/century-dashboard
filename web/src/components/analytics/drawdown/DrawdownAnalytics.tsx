@@ -49,7 +49,7 @@ export default function DrawdownAnalytics({ snapshot }: { snapshot: Snapshot }) 
 
       <Section title="Drawdown History"><DrawdownHistory curve={d.curve} /></Section>
 
-      <Section title="Current & Maximum Drawdown">
+      <Section title="Current & Maximum Drawdown" info="current-drawdown">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><CurrentDD d={d} /><MaxDD d={d} /></div>
       </Section>
 
@@ -57,7 +57,7 @@ export default function DrawdownAnalytics({ snapshot }: { snapshot: Snapshot }) 
 
       <Section title="Drawdown Timeline"><Timeline d={d} /></Section>
 
-      <Section title="Recovery Analysis"><RecoveryAnalysis d={d} /></Section>
+      <Section title="Recovery Analysis" info="recovery-time"><RecoveryAnalysis d={d} /></Section>
 
       <Section title="Drawdown Distribution"><Distribution d={d} /></Section>
 

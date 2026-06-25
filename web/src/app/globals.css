@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* info tooltip / modal fade-in */
+@keyframes infoFade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.info-tt { animation: infoFade 0.12s ease-out; }
+
 :root {
   --background: #060a14;
   --foreground: #e2e8f0;

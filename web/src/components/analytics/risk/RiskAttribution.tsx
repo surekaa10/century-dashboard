@@ -81,7 +81,7 @@ export default function RiskAttribution({ snapshot }: { snapshot: Snapshot }) {
         </div>
       </Section>
 
-      <Section title="Position Risk Contribution" subtitle="Risk contribution can diverge sharply from capital weight">
+      <Section title="Position Risk Contribution" info="risk-contribution" subtitle="Risk contribution can diverge sharply from capital weight">
         <RiskPositionTable rows={r.rows} />
         <div className="mt-4"><TopRiskContributors rows={r.rows} /></div>
       </Section>
@@ -113,7 +113,7 @@ export default function RiskAttribution({ snapshot }: { snapshot: Snapshot }) {
         <RollingRisk history={r.history} />
       </Section>
 
-      <Section title="Marginal VaR Analysis" subtitle="Impact of changing position size on portfolio VaR">
+      <Section title="Marginal VaR Analysis" info="marginal-var" subtitle="Impact of changing position size on portfolio VaR">
         <MarginalVarTable rows={r.rows} />
       </Section>
 

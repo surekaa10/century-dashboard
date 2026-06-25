@@ -56,10 +56,10 @@ export default function DecisionQuality({ snapshot }: { snapshot: Snapshot }) {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <StatCard label="Decision Quality" value={`${d.decisionScore.toFixed(0)}`} hint={d.rating} valueClass={color === "#10b981" ? "text-emerald-400" : color === "#f43f5e" ? "text-rose-400" : "text-slate-100"} />
-        <StatCard label="Outcome Quality" value={`${d.outcomeScore.toFixed(0)}`} />
+        <StatCard label="Decision Quality" info="decision-quality" value={`${d.decisionScore.toFixed(0)}`} hint={d.rating} valueClass={color === "#10b981" ? "text-emerald-400" : color === "#f43f5e" ? "text-rose-400" : "text-slate-100"} />
+        <StatCard label="Outcome Quality" info="outcome-quality" value={`${d.outcomeScore.toFixed(0)}`} />
         <StatCard label="Process Adherence" value={`${d.processAdherence.toFixed(0)}%`} />
-        <StatCard label="Discipline" value={`${d.discipline.toFixed(0)}`} />
+        <StatCard label="Discipline" info="discipline" value={`${d.discipline.toFixed(0)}`} />
         <StatCard label="Risk Mgmt" value={`${d.riskMgmt.toFixed(0)}`} />
         <StatCard label="Skill vs Luck" value={`${d.skillPct.toFixed(0)}/${d.luckPct.toFixed(0)}`} hint="skill / luck" />
         <StatCard label="Improvement" value={`${d.improvement >= 0 ? "+" : ""}${d.improvement.toFixed(0)}`} valueClass={pnlClass(d.improvement)} hint="recent vs early" />

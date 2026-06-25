@@ -16,11 +16,12 @@ import MarginDashboard from "@/components/margin/MarginDashboard";
 import CommandCenter from "@/components/analytics/command/CommandCenter";
 import TradingAnalytics from "@/components/analytics/trading/TradingAnalytics";
 import ValidationDashboard from "@/components/analytics/validation/ValidationDashboard";
+import MetricDictionary from "@/components/analytics/glossary/MetricDictionary";
 
 const POLL_MS = 30_000;
 type Tab =
   | "overview" | "analytics" | "attribution" | "risk" | "evolution"
-  | "factors" | "margin" | "trading" | "command" | "integrity";
+  | "factors" | "margin" | "trading" | "command" | "integrity" | "glossary";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -87,6 +88,7 @@ export default function Page() {
               ["trading", "Trading"],
               ["command", "Command Center"],
               ["integrity", "Integrity"],
+              ["glossary", "Glossary"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -144,6 +146,8 @@ export default function Page() {
             <TradingAnalytics snapshot={snapshot!} />
           ) : tab === "integrity" ? (
             <ValidationDashboard snapshot={snapshot!} />
+          ) : tab === "glossary" ? (
+            <MetricDictionary />
           ) : (
             <CommandCenter snapshot={snapshot!} />
           )}

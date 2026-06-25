@@ -59,8 +59,8 @@ export default function FactorExposure({ snapshot }: { snapshot: Snapshot }) {
         </div>
       </Section>
 
-      <Section title="Equity Factor Exposure"><ExposureTable title="Core Equity Factors (long/short ETF spreads)" rows={equity} /></Section>
-      <Section title="Macro Factor Exposure"><ExposureTable title="Macro Factors (ETF/index betas)" rows={macro} /></Section>
+      <Section title="Equity Factor Exposure" info="factor-exposure"><ExposureTable title="Core Equity Factors (long/short ETF spreads)" rows={equity} /></Section>
+      <Section title="Macro Factor Exposure" info="factor-exposure"><ExposureTable title="Macro Factors (ETF/index betas)" rows={macro} /></Section>
 
       <Section title="Factor Risk Decomposition"><RiskDecomp d={d} /></Section>
       <Section title="Factor Return Attribution"><ReturnWaterfall d={d} /></Section>

@@ -23,7 +23,7 @@ export default function Scorecard({ snapshot }: { snapshot: Snapshot }) {
 
   return (
     <div className="px-6 pb-10">
-      <Section title="Portfolio Health Score" subtitle="Is this a high-quality portfolio? — one score, four pillars">
+      <Section title="Portfolio Health Score" info="portfolio-health-score" subtitle="Is this a high-quality portfolio? — one score, four pillars">
         <HealthGauge d={d} />
       </Section>
 
