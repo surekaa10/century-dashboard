@@ -7,6 +7,7 @@ import KpiStrip from "@/components/KpiStrip";
 import PositionsTable from "@/components/PositionsTable";
 import EquityCurve from "@/components/EquityCurve";
 import AllocationDonut from "@/components/AllocationDonut";
+import WorldClock from "@/components/WorldClock";
 import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
 import RiskSuite from "@/components/analytics/risksuite/RiskSuite";
@@ -108,6 +109,7 @@ export default function Page() {
             <CommandCenter snapshot={snapshot!} />
           ) : tab === "overview" ? (
             <>
+              <WorldClock />
               <KpiStrip
                 account={account}
                 positions={snapshot!.positions}
