@@ -117,7 +117,7 @@ export default function Page() {
               />
               <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                  <EquityCurve deals={snapshot!.deals} currentEquity={account.equity} />
+                  <EquityCurve positions={snapshot!.positions} symbolRates={snapshot!.symbolRates} />
                 </div>
                 <AllocationDonut positions={snapshot!.positions} />
               </div>

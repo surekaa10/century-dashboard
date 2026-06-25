@@ -1,10 +1,4 @@
-// Port of portfolio_overview.build_equity_from_deals: reconstruct the daily
-// equity curve from the MT5 deal ledger. Each deal contributes
-// profit + commission + swap; the running cumulative sum is the realized
-// balance, forward-filled across non-trading days, with the final point
-// anchored to current equity (so open floating P&L shows at the right edge).
-
-import type { Deal } from "./types";
+import type { Deal, Position, SymbolRates } from "./types";
 
 export interface EquityPoint {
   date: string; // YYYY-MM-DD
@@ -50,6 +44,111 @@ export function buildEquityFromDeals(deals: Deal[], currentEquity: number): Equi
 
   // anchor the final point to current equity (includes open unrealized P&L)
   if (out.length) out[out.length - 1].value = currentEquity;
+  return out;
+}
+
+// Parses MT5 openTime strings into YYYY-MM-DD.
+// Handles "2026-06-10 09:32:00", "2026.06.10 09:32:00", "10 Jun 2026 09:32:00".
+const OPEN_MONTHS: Record<string, string> = {
+  jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",
+  jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12",
+};
+function parseOpenDateMV(openTime: string): string {
+  const s = openTime.trim();
+  // ISO-like: "2026-06-10 ..." or "2026.06.10 ..."
+  const isoMatch = s.match(/^(\d{4})[.\-](\d{2})[.\-](\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  // Human: "10 Jun 2026 09:32"
+  const parts = s.split(/\s+/);
+  if (parts.length >= 3) {
+    const mo = OPEN_MONTHS[parts[1].slice(0, 3).toLowerCase()];
+    if (mo) return `${parts[2]}-${mo}-${parts[0].padStart(2, "0")}`;
+  }
+  return "";
+}
+
+// Builds the equity curve from the market value of open positions at historical
+// prices (from symbolRates). For each date, each position's market value is scaled
+// by the price ratio (historicalPrice / currentPrice), so the curve shows how the
+// portfolio's total notional value changed over time without lot-size ambiguity.
+// The final point is anchored to the actual sum of current marketValues.
+export function buildEquityFromMarketValue(
+  positions: Position[],
+  rates: SymbolRates,
+): EquityPoint[] {
+  if (!positions.length) return [];
+
+  // Aggregate multi-fill positions into one row per symbol
+  const bySymbol = new Map<string, Position>();
+  for (const p of positions) {
+    const key = p.symbol.trim();
+    const ex = bySymbol.get(key);
+    if (!ex) {
+      bySymbol.set(key, { ...p, symbol: key });
+    } else {
+      const totalVol = ex.volume + p.volume;
+      ex.entryPrice = (ex.entryPrice * ex.volume + p.entryPrice * p.volume) / totalVol;
+      ex.volume = totalVol;
+      ex.marketValue += p.marketValue;
+      ex.unrealizedPnl += p.unrealizedPnl;
+      ex.swap += p.swap;
+    }
+  }
+  const agg = [...bySymbol.values()];
+
+  // Collect all dates across all held symbols' price history
+  const dateSet = new Set<string>();
+  for (const p of agg) {
+    for (const d of rates[p.symbol]?.dates ?? []) dateSet.add(d);
+  }
+  if (!dateSet.size) return [];
+
+  const dates = [...dateSet].sort();
+
+  // Build date→close maps per symbol for forward-fill
+  const priceMaps = new Map<string, Map<string, number>>();
+  for (const p of agg) {
+    const r = rates[p.symbol];
+    if (!r) continue;
+    const m = new Map<string, number>();
+    r.dates.forEach((d, i) => m.set(d, r.close[i]));
+    priceMaps.set(p.symbol, m);
+  }
+
+  const openDates = new Map<string, string>();
+  for (const p of agg) openDates.set(p.symbol, parseOpenDateMV(p.openTime));
+
+  const carry = new Map<string, number>(); // last known price per symbol (ffill)
+  const out: EquityPoint[] = [];
+
+  for (const date of dates) {
+    // Forward-fill prices
+    for (const [sym, m] of priceMaps) {
+      const v = m.get(date);
+      if (v !== undefined) carry.set(sym, v);
+    }
+
+    // Sum scaled market values for positions open on this date
+    let totalMv = 0;
+    for (const p of agg) {
+      const od = openDates.get(p.symbol);
+      if (od && od > date) continue; // position not yet open
+      const px = carry.get(p.symbol);
+      if (px === undefined || p.currentPrice <= 0) {
+        totalMv += Math.abs(p.marketValue); // fallback: use current value
+        continue;
+      }
+      // Scale by price ratio — avoids needing the contract size
+      totalMv += Math.abs(p.marketValue) * (px / p.currentPrice);
+    }
+    out.push({ date, value: totalMv });
+  }
+
+  // Anchor last point to actual current market values
+  if (out.length > 0) {
+    out[out.length - 1].value = agg.reduce((s, p) => s + Math.abs(p.marketValue), 0);
+  }
+
   return out;
 }
 

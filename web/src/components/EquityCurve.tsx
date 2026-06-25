@@ -9,21 +9,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Deal } from "@/lib/types";
-import { buildEquityFromDeals, filterByPeriod } from "@/lib/equity";
+import type { Position, SymbolRates } from "@/lib/types";
+import { buildEquityFromMarketValue, filterByPeriod } from "@/lib/equity";
 import { fmtMoney } from "@/lib/format";
 
 const PERIODS = ["1W", "1M", "3M", "6M", "1Y", "All"];
 
 export default function EquityCurve({
-  deals,
-  currentEquity,
+  positions,
+  symbolRates,
 }: {
-  deals: Deal[];
-  currentEquity: number;
+  positions: Position[];
+  symbolRates: SymbolRates;
 }) {
   const [period, setPeriod] = useState("1M");
-  const full = useMemo(() => buildEquityFromDeals(deals, currentEquity), [deals, currentEquity]);
+  const full = useMemo(() => buildEquityFromMarketValue(positions, symbolRates), [positions, symbolRates]);
   const data = useMemo(() => filterByPeriod(full, period), [full, period]);
 
   const baseline = data[0]?.value ?? 0;
