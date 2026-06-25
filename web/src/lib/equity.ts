@@ -68,85 +68,78 @@ function parseOpenDateMV(openTime: string): string {
 }
 
 // Builds the equity curve from the market value of open positions at historical
-// prices (from symbolRates). For each date, each position's market value is scaled
-// by the price ratio (historicalPrice / currentPrice), so the curve shows how the
-// portfolio's total notional value changed over time without lot-size ambiguity.
-// The final point is anchored to the actual sum of current marketValues.
+// prices (from symbolRates). Each raw fill is processed individually so that
+// per-fill open dates are respected correctly — a second fill added to a symbol
+// later does not retroactively inflate earlier dates. The price ratio approach
+// (historicalPrice / currentPrice) avoids needing the MT5 contract size.
+// The curve starts from the earliest fill open date (no leading zeros),
+// and the final point is anchored to the actual sum of current marketValues.
 export function buildEquityFromMarketValue(
   positions: Position[],
   rates: SymbolRates,
 ): EquityPoint[] {
   if (!positions.length) return [];
 
-  // Aggregate multi-fill positions into one row per symbol
-  const bySymbol = new Map<string, Position>();
-  for (const p of positions) {
-    const key = p.symbol.trim();
-    const ex = bySymbol.get(key);
-    if (!ex) {
-      bySymbol.set(key, { ...p, symbol: key });
-    } else {
-      const totalVol = ex.volume + p.volume;
-      ex.entryPrice = (ex.entryPrice * ex.volume + p.entryPrice * p.volume) / totalVol;
-      ex.volume = totalVol;
-      ex.marketValue += p.marketValue;
-      ex.unrealizedPnl += p.unrealizedPnl;
-      ex.swap += p.swap;
-    }
-  }
-  const agg = [...bySymbol.values()];
-
-  // Collect all dates across all held symbols' price history
+  // Collect all dates from symbolRates across held symbols
   const dateSet = new Set<string>();
-  for (const p of agg) {
-    for (const d of rates[p.symbol]?.dates ?? []) dateSet.add(d);
+  for (const p of positions) {
+    for (const d of rates[p.symbol.trim()]?.dates ?? []) dateSet.add(d);
   }
   if (!dateSet.size) return [];
 
   const dates = [...dateSet].sort();
 
-  // Build date→close maps per symbol for forward-fill
+  // Build date→close maps per symbol (one map entry per unique symbol)
   const priceMaps = new Map<string, Map<string, number>>();
-  for (const p of agg) {
-    const r = rates[p.symbol];
+  for (const p of positions) {
+    const sym = p.symbol.trim();
+    if (priceMaps.has(sym)) continue;
+    const r = rates[sym];
     if (!r) continue;
     const m = new Map<string, number>();
     r.dates.forEach((d, i) => m.set(d, r.close[i]));
-    priceMaps.set(p.symbol, m);
+    priceMaps.set(sym, m);
   }
 
-  const openDates = new Map<string, string>();
-  for (const p of agg) openDates.set(p.symbol, parseOpenDateMV(p.openTime));
+  // Parse open date for every raw fill (not aggregated — preserves per-fill dates)
+  const fillOpenDates = positions.map((p) => parseOpenDateMV(p.openTime));
 
-  const carry = new Map<string, number>(); // last known price per symbol (ffill)
+  // Trim leading dates before the first fill opened (avoids long zero-value tail)
+  const minOpenDate = fillOpenDates.filter((d) => d !== "").sort()[0] ?? dates[0];
+  const startIdx = dates.findIndex((d) => d >= minOpenDate);
+  const activeDates = startIdx >= 0 ? dates.slice(startIdx) : dates;
+
+  const carry = new Map<string, number>(); // forward-filled price per symbol
   const out: EquityPoint[] = [];
 
-  for (const date of dates) {
-    // Forward-fill prices
+  for (const date of activeDates) {
+    // Forward-fill prices on this date
     for (const [sym, m] of priceMaps) {
       const v = m.get(date);
       if (v !== undefined) carry.set(sym, v);
     }
 
-    // Sum scaled market values for positions open on this date
+    // Sum market values for every fill open on this date
     let totalMv = 0;
-    for (const p of agg) {
-      const od = openDates.get(p.symbol);
-      if (od && od > date) continue; // position not yet open
-      const px = carry.get(p.symbol);
+    for (let i = 0; i < positions.length; i++) {
+      const p = positions[i];
+      const od = fillOpenDates[i];
+      if (od && od > date) continue; // this fill not yet opened
+      const sym = p.symbol.trim();
+      const px = carry.get(sym);
       if (px === undefined || p.currentPrice <= 0) {
         totalMv += Math.abs(p.marketValue); // fallback: use current value
         continue;
       }
-      // Scale by price ratio — avoids needing the contract size
+      // Scale by price ratio — correct regardless of contract size
       totalMv += Math.abs(p.marketValue) * (px / p.currentPrice);
     }
     out.push({ date, value: totalMv });
   }
 
-  // Anchor last point to actual current market values
+  // Anchor last point to actual sum of current market values
   if (out.length > 0) {
-    out[out.length - 1].value = agg.reduce((s, p) => s + Math.abs(p.marketValue), 0);
+    out[out.length - 1].value = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0);
   }
 
   return out;
