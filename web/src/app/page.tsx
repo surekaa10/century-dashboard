@@ -73,7 +73,7 @@ export default function Page() {
 
       {account ? (
         <>
-          <nav className="flex gap-1 border-b border-cyan-500/10 px-6">
+          <nav className="flex gap-1 overflow-x-auto border-b border-cyan-500/10 px-4 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               ["overview", "Overview"],
               ["scorecard", "Scorecard"],
@@ -92,7 +92,7 @@ export default function Page() {
               <button
                 key={key}
                 onClick={() => setTab(key)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
+                className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition sm:px-4 ${
                   tab === key
                     ? "border-cyan-400 text-cyan-300"
                     : "border-transparent text-slate-500 hover:text-slate-300"

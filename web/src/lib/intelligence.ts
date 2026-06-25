@@ -112,9 +112,9 @@ export function buildIntelligence(account: Account | null, positions: Position[]
   }
 
   // ── WARNINGS ──
-  if (ana.largestWeightPct > 12) add("warning", "critical", 95, `⚠ Largest position breaches concentration limit`, `${[...ana.positions].sort((a, b) => b.weight - a.weight)[0]?.symbol} at ${ana.largestWeightPct.toFixed(1)}% exceeds the 12% hard limit.`, [{ label: "Weight", value: `${ana.largestWeightPct.toFixed(1)}%` }], "Analytics", "Reduce position size.");
-  if (Number.isFinite(ana.positions[0]?.beta) && factors && Math.abs(factors.marketBeta) > 1.2) add("warning", "high", 80, `⚠ Portfolio beta above risk limit`, `Market beta ${factors.marketBeta.toFixed(2)} exceeds the 1.20 guideline — amplified sensitivity to broad market moves.`, [{ label: "Beta", value: factors.marketBeta.toFixed(2) }], "Factors");
-  if (div.avgCorr > 0.5) add("warning", "high", 80, `⚠ Elevated average correlation`, `Average pairwise correlation ${div.avgCorr.toFixed(2)} is high — diversification benefit is limited and losses may cluster.`, [{ label: "Avg ρ", value: div.avgCorr.toFixed(2) }], "Diversification");
+  if (ana.largestWeightPct > 12) add("warning", "critical", 95, `Largest position breaches concentration limit`, `${[...ana.positions].sort((a, b) => b.weight - a.weight)[0]?.symbol} at ${ana.largestWeightPct.toFixed(1)}% exceeds the 12% hard limit.`, [{ label: "Weight", value: `${ana.largestWeightPct.toFixed(1)}%` }], "Analytics", "Reduce position size.");
+  if (Number.isFinite(ana.positions[0]?.beta) && factors && Math.abs(factors.marketBeta) > 1.2) add("warning", "high", 80, `Portfolio beta above risk limit`, `Market beta ${factors.marketBeta.toFixed(2)} exceeds the 1.20 guideline — amplified sensitivity to broad market moves.`, [{ label: "Beta", value: factors.marketBeta.toFixed(2) }], "Factors");
+  if (div.avgCorr > 0.5) add("warning", "high", 80, `Elevated average correlation`, `Average pairwise correlation ${div.avgCorr.toFixed(2)} is high — diversification benefit is limited and losses may cluster.`, [{ label: "Avg ρ", value: div.avgCorr.toFixed(2) }], "Diversification");
 
   // ── OPPORTUNITY ──
   if (score.ok) {

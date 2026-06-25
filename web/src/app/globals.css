@@ -17,3 +17,54 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* ───────────────────────── Light mode ─────────────────────────
+   Scoped overrides of the dark palette the app uses, so individual
+   components don't each need a light variant. Toggle adds `.light`
+   to <html>. */
+html.light {
+  --background: #eef2f6;
+  --foreground: #0f172a;
+  color-scheme: light;
+}
+html.light body { background: var(--background); color: var(--foreground); }
+
+/* page + card surfaces */
+html.light .bg-\[\#060a14\] { background-color: #eef2f6 !important; }
+html.light .bg-white\/\[0\.012\],
+html.light .bg-white\/\[0\.015\],
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.025\],
+html.light .bg-white\/\[0\.03\] { background-color: #ffffff !important; }
+html.light .bg-gradient-to-b { background-image: none !important; background-color: #ffffff !important; }
+html.light .bg-white\/\[0\.04\] { background-color: #e2e8f0 !important; }   /* progress tracks */
+html.light .bg-white\/\[0\.08\] { background-color: #cbd5e1 !important; }
+html.light .bg-black\/20, html.light .bg-black\/30 { background-color: #f1f5f9 !important; }
+
+/* borders */
+html.light .border-cyan-500\/10,
+html.light .border-cyan-500\/15,
+html.light .border-cyan-500\/20,
+html.light .border-white\/10,
+html.light .border-white\/\[0\.02\],
+html.light .border-white\/\[0\.04\],
+html.light .border-white\/\[0\.06\] { border-color: #d8e0ea !important; }
+
+/* slate text scale → inverted lightness */
+html.light .text-slate-100 { color: #0f172a !important; }
+html.light .text-slate-200 { color: #1e293b !important; }
+html.light .text-slate-300 { color: #334155 !important; }
+html.light .text-slate-400 { color: #475569 !important; }
+html.light .text-slate-500 { color: #64748b !important; }
+html.light .text-slate-600 { color: #94a3b8 !important; }
+html.light .text-slate-700 { color: #cbd5e1 !important; }
+
+/* accent text → darker for contrast on white */
+html.light .text-cyan-300, html.light .text-cyan-400 { color: #0e7490 !important; }
+html.light .text-emerald-400, html.light .text-emerald-500 { color: #059669 !important; }
+html.light .text-rose-300, html.light .text-rose-400 { color: #e11d48 !important; }
+html.light .text-amber-300, html.light .text-amber-400 { color: #b45309 !important; }
+html.light .text-orange-300 { color: #ea580c !important; }
+
+/* faint divider rows */
+html.light .border-t.border-white\/\[0\.04\] { border-color: #eef2f6 !important; }
