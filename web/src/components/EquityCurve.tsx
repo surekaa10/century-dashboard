@@ -10,38 +10,73 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Position, SymbolRates } from "@/lib/types";
-import { buildPnlCurve, filterByPeriod } from "@/lib/equity";
+import type { Account, Position, SymbolRates } from "@/lib/types";
+import { buildPnlCurve, buildYesterdayPnlFromRates, filterByPeriod } from "@/lib/equity";
+import type { EquityPoint } from "@/lib/equity";
 import { fmtMoney } from "@/lib/format";
 
 const PERIODS = ["1W", "1M", "3M", "6M", "1Y", "All"];
 
+// P&L-style metrics centre on zero & colour by sign; level metrics scale to data.
+const PNL_METRICS = new Set(["Floating P&L", "Yesterday P&L", "Today Realized", "Swap"]);
+
 export default function EquityCurve({
   positions,
   symbolRates,
-  overlayLine,
+  account,
+  todayRealized,
+  metric = "Floating P&L",
 }: {
   positions: Position[];
   symbolRates: SymbolRates;
-  overlayLine?: { label: string; value: number; color: string };
+  account: Account;
+  todayRealized: number;
+  metric?: string;
 }) {
   const [period, setPeriod] = useState("1M");
   const [yZoom, setYZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startY: number; startZoom: number } | null>(null);
 
-  const full = useMemo(() => buildPnlCurve(positions, symbolRates), [positions, symbolRates]);
-  const data = useMemo(() => filterByPeriod(full, period), [full, period]);
+  const floating = useMemo(() => buildPnlCurve(positions, symbolRates), [positions, symbolRates]);
+
+  // Build the series for the selected metric off the floating-P&L backbone.
+  // Floating P&L and Equity have a genuine reconstructed daily trend; the other
+  // account fields are point-in-time, so we plot their current level honestly.
+  const { series, reconstructed } = useMemo(() => {
+    const currentFloating = floating.length ? floating[floating.length - 1].value : 0;
+    const swap = positions.reduce((s, p) => s + p.swap, 0);
+    const { yesterdayPnl } = buildYesterdayPnlFromRates(positions, symbolRates);
+
+    if (metric === "Floating P&L") return { series: floating, reconstructed: true };
+    if (metric === "Equity") {
+      const offset = account.equity - currentFloating; // ≈ balance + credit + swap
+      return { series: floating.map((p) => ({ date: p.date, value: p.value + offset })), reconstructed: true };
+    }
+    const consts: Record<string, number> = {
+      Balance: account.balance,
+      Credit: account.credit,
+      Swap: swap,
+      Margin: account.margin,
+      "Free Margin": account.freeMargin,
+      "Today Realized": todayRealized,
+      "Yesterday P&L": yesterdayPnl,
+    };
+    const v = consts[metric] ?? 0;
+    return { series: floating.map((p) => ({ date: p.date, value: v })) as EquityPoint[], reconstructed: false };
+  }, [metric, floating, positions, symbolRates, account, todayRealized]);
+
+  const data = useMemo(() => filterByPeriod(series, period), [series, period]);
 
   const end = data[data.length - 1]?.value ?? 0;
-  const up = end >= 0;
-  const color = up ? "#10b981" : "#f43f5e";
+  const isPnl = PNL_METRICS.has(metric);
+  const color = isPnl ? (end >= 0 ? "#10b981" : "#f43f5e") : "#22d3ee";
 
   const values = data.map((d) => d.value);
-  const lo = Math.min(...values, 0);
-  const hi = Math.max(...values, 0);
+  const lo = isPnl ? Math.min(...values, 0) : Math.min(...values);
+  const hi = isPnl ? Math.max(...values, 0) : Math.max(...values);
   const center = (lo + hi) / 2;
-  const naturalRange = (hi - lo) || Math.abs(hi) * 0.01 || 100;
+  const naturalRange = (hi - lo) || Math.abs(hi) * 0.05 || 100;
   const halfRange = (naturalRange / 2 + naturalRange * 0.15) / yZoom;
   const domainLo = center - halfRange;
   const domainHi = center + halfRange;
@@ -82,8 +117,10 @@ export default function EquityCurve({
     <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012] p-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-200">
-          Floating P&L
-          <span className="ml-2 text-[11px] font-normal text-slate-500">unrealized · drag or scroll Y-axis to zoom</span>
+          {metric}
+          <span className="ml-2 text-[11px] font-normal text-slate-500">
+            {reconstructed ? "reconstructed daily trend · drag or scroll Y-axis to zoom" : "current level — no daily history to reconstruct"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {yZoom !== 1 && (
@@ -140,9 +177,9 @@ export default function EquityCurve({
                 tick={{ fill: "#64748b", fontSize: 10 }}
                 tickFormatter={(v) => {
                   const n = Number(v);
-                  const sign = n >= 0 ? "+" : "";
+                  const sign = n >= 0 ? "+" : "-";
                   const abs = Math.abs(n);
-                  return sign + "$" + (abs >= 1000 ? (abs / 1000).toFixed(1) + "K" : abs.toFixed(0));
+                  return (isPnl ? sign : "") + "$" + (abs >= 1000 ? (abs / 1000).toFixed(1) + "K" : abs.toFixed(0));
                 }}
                 axisLine={false}
                 tickLine={false}
@@ -158,23 +195,10 @@ export default function EquityCurve({
                 labelStyle={{ color: "#e2e8f0" }}
                 formatter={(value) => {
                   const n = Number(value);
-                  return [(n >= 0 ? "+" : "") + "$" + fmtMoney(n, 0), "Floating P&L"];
+                  return [(isPnl && n >= 0 ? "+" : "") + "$" + fmtMoney(n, 0), metric];
                 }}
               />
-              <ReferenceLine y={0} stroke="#334155" strokeDasharray="3 3" />
-              {overlayLine && (
-                <ReferenceLine
-                  y={overlayLine.value}
-                  stroke={overlayLine.color}
-                  strokeDasharray="4 2"
-                  label={{
-                    value: overlayLine.label,
-                    fill: overlayLine.color,
-                    fontSize: 10,
-                    position: "insideTopLeft",
-                  }}
-                />
-              )}
+              {isPnl && <ReferenceLine y={0} stroke="#334155" strokeDasharray="3 3" />}
               <Area
                 type="monotone"
                 dataKey="value"

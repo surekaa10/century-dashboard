@@ -53,7 +53,7 @@ export default function KpiStrip({
   positions: Position[];
   todayRealized: number;
   symbolRates: SymbolRates;
-  onCardClick?: (label: string, value: number, color: string) => void;
+  onCardClick?: (label: string) => void;
   activeCardLabel?: string;
 }) {
   const swap = positions.reduce((s, p) => s + p.swap, 0);
@@ -77,50 +77,52 @@ export default function KpiStrip({
   const floatingPct = costBasis > 0 ? (floating / costBasis) * 100 : 0;
 
   // Yesterday P&L via symbolRates historical closes
-  const { todayPnl, yesterdayPnl, yesterdayDate } = useMemo(
+  const { yesterdayPnl, yesterdayDate } = useMemo(
     () => buildYesterdayPnlFromRates(positions, symbolRates),
     [positions, symbolRates],
   );
   const yesterdayPct = costBasis > 0 ? (yesterdayPnl / costBasis) * 100 : 0;
 
-  const makeClick = (label: string, value: number, color: string) =>
-    onCardClick ? () => onCardClick(label, value, color) : undefined;
+  const makeClick = (label: string) => (onCardClick ? () => onCardClick(label) : undefined);
+  const isActive = (label: string) => activeCardLabel === label;
 
   return (
     <div className="grid grid-cols-2 gap-3 px-6 py-5 sm:grid-cols-4 xl:grid-cols-9">
-      <Card label="Equity" value={`${fmtMoney(account.equity)}`} hint={ccy} />
-      <Card label="Balance" value={fmtMoney(account.balance)} hint="excl. credit" />
-      <Card label="Credit" value={fmtMoney(account.credit)} hint="broker line" valueClass="text-cyan-300" />
+      <Card label="Equity" value={`${fmtMoney(account.equity)}`} hint={ccy} onClick={makeClick("Equity")} active={isActive("Equity")} />
+      <Card label="Balance" value={fmtMoney(account.balance)} hint="excl. credit" onClick={makeClick("Balance")} active={isActive("Balance")} />
+      <Card label="Credit" value={fmtMoney(account.credit)} hint="broker line" valueClass="text-cyan-300" onClick={makeClick("Credit")} active={isActive("Credit")} />
       <Card
         label="Floating P&L"
         value={fmtSigned(floating)}
         valueClass={`font-mono ${pnlClass(floating)}`}
         sub={fmtPct(floatingPct)}
-        onClick={makeClick("Floating P&L", floating, floating >= 0 ? "#10b981" : "#f43f5e")}
-        active={activeCardLabel === "Floating P&L"}
+        onClick={makeClick("Floating P&L")}
+        active={isActive("Floating P&L")}
       />
       <Card
         label="Yesterday P&L (ET)"
         value={fmtSigned(yesterdayPnl)}
         valueClass={`font-mono ${pnlClass(yesterdayPnl)}`}
         sub={yesterdayDate ? `${fmtPct(yesterdayPct)}  ·  ${yesterdayDate}` : "—"}
-        onClick={makeClick("Yesterday P&L", yesterdayPnl, yesterdayPnl >= 0 ? "#10b981" : "#f43f5e")}
-        active={activeCardLabel === "Yesterday P&L"}
+        onClick={makeClick("Yesterday P&L")}
+        active={isActive("Yesterday P&L")}
       />
       <Card
         label="Swap"
         value={fmtSigned(swap)}
         valueClass={`font-mono ${pnlClass(swap)}`}
+        onClick={makeClick("Swap")}
+        active={isActive("Swap")}
       />
-      <Card label="Margin" value={fmtMoney(account.margin)} />
-      <Card label="Free Margin" value={fmtMoney(account.freeMargin)} />
+      <Card label="Margin" value={fmtMoney(account.margin)} onClick={makeClick("Margin")} active={isActive("Margin")} />
+      <Card label="Free Margin" value={fmtMoney(account.freeMargin)} onClick={makeClick("Free Margin")} active={isActive("Free Margin")} />
       <Card
         label="Today Realized"
         value={fmtSigned(todayRealized)}
         valueClass={`font-mono ${pnlClass(todayRealized)}`}
         hint={`${holdings} holdings`}
-        onClick={makeClick("Today Realized", todayRealized, todayRealized >= 0 ? "#10b981" : "#f43f5e")}
-        active={activeCardLabel === "Today Realized"}
+        onClick={makeClick("Today Realized")}
+        active={isActive("Today Realized")}
       />
     </div>
   );
