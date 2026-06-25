@@ -30,6 +30,11 @@ export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [now, setNow] = useState<number>(Date.now());
   const [tab, setTab] = useState<Tab>("overview");
+  const [kpiOverlay, setKpiOverlay] = useState<{ label: string; value: number; color: string } | null>(null);
+
+  const handleKpiCardClick = (label: string, value: number, color: string) => {
+    setKpiOverlay((prev) => (prev?.label === label ? null : { label, value, color }));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -115,11 +120,17 @@ export default function Page() {
                 account={account}
                 positions={snapshot!.positions}
                 todayRealized={snapshot!.todayRealized}
-                deals={snapshot!.deals}
+                symbolRates={snapshot!.symbolRates}
+                onCardClick={handleKpiCardClick}
+                activeCardLabel={kpiOverlay?.label}
               />
               <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                  <EquityCurve positions={snapshot!.positions} symbolRates={snapshot!.symbolRates} />
+                  <EquityCurve
+                    positions={snapshot!.positions}
+                    symbolRates={snapshot!.symbolRates}
+                    overlayLine={kpiOverlay ?? undefined}
+                  />
                 </div>
                 <AllocationDonut positions={snapshot!.positions} />
               </div>

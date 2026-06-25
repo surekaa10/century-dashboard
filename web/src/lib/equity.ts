@@ -74,6 +74,78 @@ function parseOpenDateMV(openTime: string): string {
 // (historicalPrice / currentPrice) avoids needing the MT5 contract size.
 // The curve starts from the earliest fill open date (no leading zeros),
 // and the final point is anchored to the actual sum of current marketValues.
+// Builds the historical floating P&L curve. For each date, for every raw fill
+// that was already open, computes dirSign*(historicalPrice - entryPrice)*qty,
+// where qty = |marketValue| / currentPrice (avoids needing contract size).
+// The final point is anchored to the actual sum of per-fill floating P&L.
+export function buildPnlCurve(
+  positions: Position[],
+  rates: SymbolRates,
+): EquityPoint[] {
+  if (!positions.length) return [];
+
+  const dateSet = new Set<string>();
+  for (const p of positions) {
+    for (const d of rates[p.symbol.trim()]?.dates ?? []) dateSet.add(d);
+  }
+  if (!dateSet.size) return [];
+
+  const dates = [...dateSet].sort();
+
+  const priceMaps = new Map<string, Map<string, number>>();
+  for (const p of positions) {
+    const sym = p.symbol.trim();
+    if (priceMaps.has(sym)) continue;
+    const r = rates[sym];
+    if (!r) continue;
+    const m = new Map<string, number>();
+    r.dates.forEach((d, i) => m.set(d, r.close[i]));
+    priceMaps.set(sym, m);
+  }
+
+  const fillOpenDates = positions.map((p) => parseOpenDateMV(p.openTime));
+  const minOpenDate = fillOpenDates.filter((d) => d !== "").sort()[0] ?? dates[0];
+  const startIdx = dates.findIndex((d) => d >= minOpenDate);
+  const activeDates = startIdx >= 0 ? dates.slice(startIdx) : dates;
+
+  const carry = new Map<string, number>();
+  const out: EquityPoint[] = [];
+
+  for (const date of activeDates) {
+    for (const [sym, m] of priceMaps) {
+      const v = m.get(date);
+      if (v !== undefined) carry.set(sym, v);
+    }
+
+    let totalPnl = 0;
+    for (let i = 0; i < positions.length; i++) {
+      const p = positions[i];
+      const od = fillOpenDates[i];
+      if (od && od > date) continue;
+      const sym = p.symbol.trim();
+      const px = carry.get(sym);
+      if (px === undefined || p.currentPrice <= 0) continue;
+      const dirSign = p.direction === "Long" ? 1 : -1;
+      const qty = Math.abs(p.marketValue) / p.currentPrice;
+      totalPnl += dirSign * (px - p.entryPrice) * qty;
+    }
+    out.push({ date, value: totalPnl });
+  }
+
+  // Anchor last point to actual current floating P&L
+  if (out.length > 0) {
+    const currentPnl = positions.reduce((s, p) => {
+      if (p.currentPrice <= 0) return s;
+      const dirSign = p.direction === "Long" ? 1 : -1;
+      const qty = Math.abs(p.marketValue) / p.currentPrice;
+      return s + dirSign * (p.currentPrice - p.entryPrice) * qty;
+    }, 0);
+    out[out.length - 1].value = currentPnl;
+  }
+
+  return out;
+}
+
 export function buildEquityFromMarketValue(
   positions: Position[],
   rates: SymbolRates,
@@ -193,6 +265,59 @@ export function buildDailyPnlET(
     yesterdayPnl: todayStart - yesterdayStart,
     yesterdayDate: yesterdayET,
   };
+}
+
+// Computes yesterday's and today's unrealized P&L using symbolRates closes.
+// Avoids the deals-based approach which breaks when no deals were recently closed.
+export function buildYesterdayPnlFromRates(
+  positions: Position[],
+  rates: SymbolRates,
+): { todayPnl: number; yesterdayPnl: number; yesterdayDate: string } {
+  const etFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  function toYMD(d: Date): string {
+    const parts = etFmt.formatToParts(d);
+    const get = (t: string) => parts.find((x) => x.type === t)!.value;
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  }
+  const now = new Date();
+  const yesterdayET = toYMD(new Date(now.getTime() - 86400_000));
+  const yd2ET = toYMD(new Date(now.getTime() - 2 * 86400_000));
+
+  const priceAt = (sym: string, date: string): number | undefined => {
+    const r = rates[sym];
+    if (!r) return undefined;
+    let last: number | undefined;
+    for (let i = 0; i < r.dates.length; i++) {
+      if (r.dates[i] <= date) last = r.close[i];
+      else break;
+    }
+    return last;
+  };
+
+  let todayPnl = 0;
+  let yesterdayPnl = 0;
+
+  for (const p of positions) {
+    const sym = p.symbol.trim();
+    if (p.currentPrice <= 0) continue;
+    const dirSign = p.direction === "Long" ? 1 : -1;
+    const qty = Math.abs(p.marketValue) / p.currentPrice;
+
+    const ydPrice = priceAt(sym, yesterdayET);
+    const yd2Price = priceAt(sym, yd2ET);
+
+    if (ydPrice !== undefined) {
+      todayPnl += dirSign * (p.currentPrice - ydPrice) * qty;
+    }
+    if (ydPrice !== undefined && yd2Price !== undefined) {
+      yesterdayPnl += dirSign * (ydPrice - yd2Price) * qty;
+    }
+  }
+
+  return { todayPnl, yesterdayPnl, yesterdayDate: yesterdayET };
 }
 
 export function filterByPeriod(curve: EquityPoint[], period: string): EquityPoint[] {

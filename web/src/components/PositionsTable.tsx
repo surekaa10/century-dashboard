@@ -51,6 +51,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
               <th className="px-4 py-2 text-right">Avg Entry</th>
               <th className="px-4 py-2 text-right">Current</th>
               <th className="px-4 py-2 text-right">Market Value</th>
+              <th className="px-4 py-2 text-right">Cost Value</th>
               <th className="px-4 py-2 text-right">Unrealized P&L</th>
               <th className="px-4 py-2 text-right">P&L %</th>
               <th className="px-4 py-2 text-right">Weight %</th>
@@ -63,6 +64,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
               const avgEntry = fills.reduce((s, p) => s + p.entryPrice * p.volume, 0) / totalVol;
               const totalMvSym = fills.reduce((s, p) => s + p.marketValue, 0);
               const totalPnl = fills.reduce((s, p) => s + p.unrealizedPnl, 0);
+              const costValue = fills.reduce((s, p) => s + p.entryPrice * p.volume, 0);
               const currentPrice = fills[0].currentPrice;
               const direction = fills[0].direction;
               const basis = Math.abs(avgEntry * totalVol);
@@ -107,6 +109,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
                     <td className="px-4 py-2.5 text-right font-semibold text-slate-200">{fmtMoney(avgEntry)}</td>
                     <td className="px-4 py-2.5 text-right text-slate-300">{fmtMoney(currentPrice)}</td>
                     <td className="px-4 py-2.5 text-right text-slate-300">{fmtMoney(totalMvSym, 0)}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-400">{fmtMoney(costValue, 0)}</td>
                     <td className={`px-4 py-2.5 text-right font-semibold ${pnlClass(totalPnl)}`}>
                       {fmtSigned(totalPnl)}
                     </td>
@@ -139,6 +142,9 @@ export default function PositionsTable({ positions }: { positions: Position[] })
                         <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">
                           {fmtMoney(fill.marketValue, 0)}
                         </td>
+                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">
+                          {fmtMoney(fill.entryPrice * fill.volume, 0)}
+                        </td>
                         <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(fill.unrealizedPnl)}`}>
                           {fmtSigned(fill.unrealizedPnl)}
                         </td>
@@ -151,7 +157,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
             })}
             {symbols.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                   No open positions
                 </td>
               </tr>
