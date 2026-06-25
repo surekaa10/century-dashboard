@@ -18,11 +18,12 @@ import MarginDashboard from "@/components/margin/MarginDashboard";
 import DrawdownAnalytics from "@/components/analytics/drawdown/DrawdownAnalytics";
 import Scorecard from "@/components/analytics/scorecard/Scorecard";
 import PortfolioIntelligence from "@/components/analytics/intelligence/PortfolioIntelligence";
+import PMDashboard from "@/components/analytics/pm/PMDashboard";
 
 const POLL_MS = 30_000;
 type Tab =
-  | "overview" | "intelligence" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
-  | "diversification" | "factors" | "stress" | "margin" | "drawdown";
+  | "overview" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
+  | "diversification" | "factors" | "stress" | "margin" | "drawdown" | "intelligence" | "command";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -75,7 +76,6 @@ export default function Page() {
           <nav className="flex gap-1 border-b border-cyan-500/10 px-6">
             {([
               ["overview", "Overview"],
-              ["intelligence", "Intelligence"],
               ["scorecard", "Scorecard"],
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
@@ -86,6 +86,8 @@ export default function Page() {
               ["stress", "Stress"],
               ["margin", "Margin & Leverage"],
               ["drawdown", "Drawdown"],
+              ["intelligence", "Intelligence"],
+              ["command", "PM Command"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -139,8 +141,12 @@ export default function Page() {
             <StressTesting snapshot={snapshot!} />
           ) : tab === "margin" ? (
             <MarginDashboard snapshot={snapshot!} />
-          ) : (
+          ) : tab === "drawdown" ? (
             <DrawdownAnalytics snapshot={snapshot!} />
+          ) : tab === "command" ? (
+            <PMDashboard snapshot={snapshot!} />
+          ) : (
+            <PortfolioIntelligence snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
