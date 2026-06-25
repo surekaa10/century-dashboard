@@ -13,15 +13,13 @@ import RiskSuite from "@/components/analytics/risksuite/RiskSuite";
 import PositionEvolution from "@/components/analytics/evolution/PositionEvolution";
 import FactorExposure from "@/components/analytics/factors/FactorExposure";
 import MarginDashboard from "@/components/margin/MarginDashboard";
-import Scorecard from "@/components/analytics/scorecard/Scorecard";
-import PortfolioIntelligence from "@/components/analytics/intelligence/PortfolioIntelligence";
-import PMDashboard from "@/components/analytics/pm/PMDashboard";
+import CommandCenter from "@/components/analytics/command/CommandCenter";
 import TradingAnalytics from "@/components/analytics/trading/TradingAnalytics";
 
 const POLL_MS = 30_000;
 type Tab =
-  | "overview" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
-  | "factors" | "margin" | "trading" | "intelligence" | "command";
+  | "overview" | "analytics" | "attribution" | "risk" | "evolution"
+  | "factors" | "margin" | "trading" | "command";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -79,7 +77,7 @@ export default function Page() {
           <nav className="flex gap-1 overflow-x-auto border-b border-cyan-500/10 px-4 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               ["overview", "Overview"],
-              ["scorecard", "Scorecard"],
+              ["command", "Command Center"],
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
               ["risk", "Risk & Resilience"],
@@ -87,8 +85,6 @@ export default function Page() {
               ["factors", "Factors"],
               ["margin", "Margin & Leverage"],
               ["trading", "Trading"],
-              ["intelligence", "Intelligence"],
-              ["command", "PM Command"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -104,10 +100,8 @@ export default function Page() {
             ))}
           </nav>
 
-          {tab === "intelligence" ? (
-            <PortfolioIntelligence snapshot={snapshot!} />
-          ) : tab === "scorecard" ? (
-            <Scorecard snapshot={snapshot!} />
+          {tab === "command" ? (
+            <CommandCenter snapshot={snapshot!} />
           ) : tab === "overview" ? (
             <>
               <KpiStrip
@@ -146,10 +140,8 @@ export default function Page() {
             <MarginDashboard snapshot={snapshot!} />
           ) : tab === "trading" ? (
             <TradingAnalytics snapshot={snapshot!} />
-          ) : tab === "command" ? (
-            <PMDashboard snapshot={snapshot!} />
           ) : (
-            <PortfolioIntelligence snapshot={snapshot!} />
+            <CommandCenter snapshot={snapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
