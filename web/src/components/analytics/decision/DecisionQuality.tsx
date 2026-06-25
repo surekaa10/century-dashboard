@@ -8,8 +8,36 @@ import { fmtPct, pnlClass } from "@/lib/format";
 import { Section, StatCard } from "../ui";
 
 const TT = { background: "#0d1321", border: "1px solid rgba(56,189,248,0.25)", borderRadius: 8, fontSize: 12 } as const;
-const QUAD_COLOR: Record<number, string> = { 1: "#10b981", 2: "#38bdf8", 3: "#fb923c", 4: "#f43f5e" };
+// Q1 good/good=green · Q2 good-decision/bad-outcome=orange · Q3 bad-decision/good-outcome=amber · Q4 bad/bad=red
+const QUAD_COLOR: Record<number, string> = { 1: "#10b981", 2: "#fb923c", 3: "#fbbf24", 4: "#f43f5e" };
 const sevColor = (s: number) => (s >= 65 ? "#f43f5e" : s >= 45 ? "#fb923c" : s >= 20 ? "#fbbf24" : "#10b981");
+
+interface ScatterDatum { x: number; y: number; z: number; name: string; strategy: string; ret: number; hold: number; r: number; weight: number; q: number; status: string }
+
+function TipRow({ label, value, valueColor = "#FFFFFF" }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 28, marginTop: 5 }}>
+      <span style={{ color: "#D1D5DB", fontSize: 11 }}>{label}</span>
+      <span style={{ color: valueColor, fontSize: 12, fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+}
+function MatrixTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterDatum }> }) {
+  if (!active || !payload || !payload.length) return null;
+  const t = payload[0].payload;
+  return (
+    <div style={{ background: "#111827", border: "1px solid #3B82F6", borderRadius: 8, padding: "12px 15px", boxShadow: "0 10px 30px rgba(0,0,0,0.55), 0 0 14px rgba(59,130,246,0.30)", minWidth: 210, opacity: 0.98 }}>
+      <div style={{ color: "#FFFFFF", fontWeight: 700, fontSize: 13, marginBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 7 }}>{t.name} · {t.strategy}</div>
+      <TipRow label="Decision Score" value={`${t.x} / 100`} />
+      <TipRow label="Outcome Score" value={`${t.y} / 100`} />
+      <TipRow label="Position Size" value={`${t.weight.toFixed(1)}%`} />
+      <TipRow label="Return" value={`${t.ret >= 0 ? "+" : ""}${t.ret.toFixed(1)}%`} valueColor={t.ret >= 0 ? "#34D399" : "#FB7185"} />
+      <TipRow label="Holding Period" value={`${t.hold} days`} />
+      <TipRow label="R Multiple" value={`${t.r.toFixed(2)}R`} valueColor={t.r >= 0 ? "#34D399" : "#FB7185"} />
+      <TipRow label="Status" value={t.status} valueColor={QUAD_COLOR[t.q]} />
+    </div>
+  );
+}
 
 export default function DecisionQuality({ snapshot }: { snapshot: Snapshot }) {
   const [stopPct, setStopPct] = useState(8);
@@ -18,7 +46,7 @@ export default function DecisionQuality({ snapshot }: { snapshot: Snapshot }) {
 
   const color = d.decisionScore >= 80 ? "#10b981" : d.decisionScore >= 70 ? "#22d3ee" : d.decisionScore >= 60 ? "#fbbf24" : "#f43f5e";
   const arc = (v: number) => { const a = (-90 + v / 100 * 180) * Math.PI / 180; return `${(100 + 80 * Math.cos(a)).toFixed(1)},${(100 + 80 * Math.sin(a)).toFixed(1)}`; };
-  const scatter = d.trades.map((t) => ({ x: +t.decision.toFixed(0), y: +t.outcome.toFixed(0), z: t.weight + 2, name: t.symbol, q: t.quadrant }));
+  const scatter: ScatterDatum[] = d.trades.map((t) => ({ x: +t.decision.toFixed(0), y: +t.outcome.toFixed(0), z: t.weight + 2, name: t.symbol, strategy: t.strategy, ret: t.returnPct, hold: t.holdingDays, r: t.r, weight: t.weight, q: t.quadrant, status: t.quadLabel }));
 
   return (
     <div>
@@ -58,7 +86,7 @@ export default function DecisionQuality({ snapshot }: { snapshot: Snapshot }) {
               <YAxis type="number" dataKey="y" name="Outcome" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 9 }} axisLine={false} tickLine={false} label={{ value: "Outcome →", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 10 }} />
               <ZAxis type="number" dataKey="z" range={[40, 400]} />
               <ReferenceLine x={65} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" /><ReferenceLine y={50} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-              <Tooltip contentStyle={TT} cursor={{ strokeDasharray: "3 3" }} formatter={(v, n) => [v, String(n)]} labelFormatter={() => ""} />
+              <Tooltip content={<MatrixTip />} cursor={{ strokeDasharray: "3 3" }} />
               <Scatter data={scatter} isAnimationActive={false}>{scatter.map((s, i) => <Cell key={i} fill={QUAD_COLOR[s.q]} fillOpacity={0.7} />)}</Scatter>
             </ScatterChart></ResponsiveContainer></div>
           </div>
