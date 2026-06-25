@@ -9,13 +9,10 @@ import EquityCurve from "@/components/EquityCurve";
 import AllocationDonut from "@/components/AllocationDonut";
 import PositionAnalytics from "@/components/analytics/PositionAnalytics";
 import PerformanceAttribution from "@/components/analytics/attribution/PerformanceAttribution";
-import RiskAttribution from "@/components/analytics/risk/RiskAttribution";
+import RiskSuite from "@/components/analytics/risksuite/RiskSuite";
 import PositionEvolution from "@/components/analytics/evolution/PositionEvolution";
-import DiversificationAnalysis from "@/components/analytics/diversification/DiversificationAnalysis";
 import FactorExposure from "@/components/analytics/factors/FactorExposure";
-import StressTesting from "@/components/analytics/stress/StressTesting";
 import MarginDashboard from "@/components/margin/MarginDashboard";
-import DrawdownAnalytics from "@/components/analytics/drawdown/DrawdownAnalytics";
 import Scorecard from "@/components/analytics/scorecard/Scorecard";
 import PortfolioIntelligence from "@/components/analytics/intelligence/PortfolioIntelligence";
 import PMDashboard from "@/components/analytics/pm/PMDashboard";
@@ -24,7 +21,7 @@ import TradingAnalytics from "@/components/analytics/trading/TradingAnalytics";
 const POLL_MS = 30_000;
 type Tab =
   | "overview" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
-  | "diversification" | "factors" | "stress" | "margin" | "drawdown" | "trading" | "intelligence" | "command";
+  | "factors" | "margin" | "trading" | "intelligence" | "command";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -85,13 +82,10 @@ export default function Page() {
               ["scorecard", "Scorecard"],
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
-              ["risk", "Risk"],
+              ["risk", "Risk & Resilience"],
               ["evolution", "Evolution"],
-              ["diversification", "Diversification"],
               ["factors", "Factors"],
-              ["stress", "Stress"],
               ["margin", "Margin & Leverage"],
-              ["drawdown", "Drawdown"],
               ["trading", "Trading"],
               ["intelligence", "Intelligence"],
               ["command", "PM Command"],
@@ -143,19 +137,13 @@ export default function Page() {
           ) : tab === "attribution" ? (
             <PerformanceAttribution snapshot={snapshot!} />
           ) : tab === "risk" ? (
-            <RiskAttribution snapshot={snapshot!} />
+            <RiskSuite snapshot={snapshot!} />
           ) : tab === "evolution" ? (
             <PositionEvolution snapshot={snapshot!} />
-          ) : tab === "diversification" ? (
-            <DiversificationAnalysis snapshot={snapshot!} />
           ) : tab === "factors" ? (
             <FactorExposure snapshot={snapshot!} />
-          ) : tab === "stress" ? (
-            <StressTesting snapshot={snapshot!} />
           ) : tab === "margin" ? (
             <MarginDashboard snapshot={snapshot!} />
-          ) : tab === "drawdown" ? (
-            <DrawdownAnalytics snapshot={snapshot!} />
           ) : tab === "trading" ? (
             <TradingAnalytics snapshot={snapshot!} />
           ) : tab === "command" ? (
