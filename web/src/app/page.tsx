@@ -19,11 +19,12 @@ import DrawdownAnalytics from "@/components/analytics/drawdown/DrawdownAnalytics
 import Scorecard from "@/components/analytics/scorecard/Scorecard";
 import PortfolioIntelligence from "@/components/analytics/intelligence/PortfolioIntelligence";
 import PMDashboard from "@/components/analytics/pm/PMDashboard";
+import TacticalDashboard from "@/components/analytics/tactical/TacticalDashboard";
 
 const POLL_MS = 30_000;
 type Tab =
   | "overview" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
-  | "diversification" | "factors" | "stress" | "margin" | "drawdown" | "intelligence" | "command";
+  | "diversification" | "factors" | "stress" | "margin" | "drawdown" | "tactical" | "intelligence" | "command";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -86,6 +87,7 @@ export default function Page() {
               ["stress", "Stress"],
               ["margin", "Margin & Leverage"],
               ["drawdown", "Drawdown"],
+              ["tactical", "Tactical"],
               ["intelligence", "Intelligence"],
               ["command", "PM Command"],
             ] as [Tab, string][]).map(([key, label]) => (
@@ -143,6 +145,8 @@ export default function Page() {
             <MarginDashboard snapshot={snapshot!} />
           ) : tab === "drawdown" ? (
             <DrawdownAnalytics snapshot={snapshot!} />
+          ) : tab === "tactical" ? (
+            <TacticalDashboard snapshot={snapshot!} />
           ) : tab === "command" ? (
             <PMDashboard snapshot={snapshot!} />
           ) : (
