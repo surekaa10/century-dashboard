@@ -77,14 +77,14 @@ export default function Page() {
           <nav className="flex gap-1 overflow-x-auto border-b border-cyan-500/10 px-4 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               ["overview", "Overview"],
-              ["command", "Command Center"],
               ["analytics", "Position Analytics"],
-              ["attribution", "Attribution"],
-              ["risk", "Risk & Resilience"],
               ["evolution", "Evolution"],
-              ["factors", "Factors"],
+              ["risk", "Risk & Resilience"],
               ["margin", "Margin & Leverage"],
+              ["attribution", "Attribution"],
+              ["factors", "Factors"],
               ["trading", "Trading"],
+              ["command", "Command Center"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
