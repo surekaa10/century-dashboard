@@ -16,10 +16,11 @@ import FactorExposure from "@/components/analytics/factors/FactorExposure";
 import StressTesting from "@/components/analytics/stress/StressTesting";
 import MarginDashboard from "@/components/margin/MarginDashboard";
 import DrawdownAnalytics from "@/components/analytics/drawdown/DrawdownAnalytics";
+import Scorecard from "@/components/analytics/scorecard/Scorecard";
 
 const POLL_MS = 30_000;
 type Tab =
-  | "overview" | "analytics" | "attribution" | "risk" | "evolution"
+  | "overview" | "scorecard" | "analytics" | "attribution" | "risk" | "evolution"
   | "diversification" | "factors" | "stress" | "margin" | "drawdown";
 
 export default function Page() {
@@ -73,6 +74,7 @@ export default function Page() {
           <nav className="flex gap-1 border-b border-cyan-500/10 px-6">
             {([
               ["overview", "Overview"],
+              ["scorecard", "Scorecard"],
               ["analytics", "Position Analytics"],
               ["attribution", "Attribution"],
               ["risk", "Risk"],
@@ -97,7 +99,9 @@ export default function Page() {
             ))}
           </nav>
 
-          {tab === "overview" ? (
+          {tab === "scorecard" ? (
+            <Scorecard snapshot={snapshot!} />
+          ) : tab === "overview" ? (
             <>
               <KpiStrip
                 account={account}
