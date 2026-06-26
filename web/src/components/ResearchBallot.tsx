@@ -152,7 +152,7 @@ export default function ResearchBallot() {
               <polygon points="16,2 30,28 2,28" fill="none" stroke="#38bdf8" strokeWidth="2.5" />
               <circle cx="16" cy="16" r="3.5" fill="#38bdf8" />
             </svg>
-            Open APEX Platform
+            Open Research Ballot
           </a>
         </div>
       </div>
@@ -259,7 +259,7 @@ export default function ResearchBallot() {
       </div>
 
       <div className="text-right font-mono text-[10px] text-slate-600">
-        Sourced from APEX Research Platform · {data.weekId} · click any row to expand thesis · Score = 40% PM + 25% Skill + 20% R/R + 15% Quant
+        Sourced from Research Ballot · {data.weekId} · click any row to expand thesis · Score = 40% PM + 25% Skill + 20% R/R + 15% Quant
       </div>
     </div>
   );
