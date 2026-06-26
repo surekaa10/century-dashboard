@@ -132,15 +132,12 @@ export function buildPnlCurve(
     out.push({ date, value: totalPnl });
   }
 
-  // Anchor last point to actual current floating P&L
+  // Anchor last point to MT5's authoritative current floating P&L. Historical
+  // points use the price-ratio recompute (no historical MT5 P&L exists), but the
+  // live endpoint should match the reported unrealized P&L exactly — the
+  // recompute drifts on contract-size / FX-converted symbols (e.g. RHMG).
   if (out.length > 0) {
-    const currentPnl = positions.reduce((s, p) => {
-      if (p.currentPrice <= 0) return s;
-      const dirSign = p.direction === "Long" ? 1 : -1;
-      const qty = Math.abs(p.marketValue) / p.currentPrice;
-      return s + dirSign * (p.currentPrice - p.entryPrice) * qty;
-    }, 0);
-    out[out.length - 1].value = currentPnl;
+    out[out.length - 1].value = positions.reduce((s, p) => s + p.unrealizedPnl, 0);
   }
 
   return out;

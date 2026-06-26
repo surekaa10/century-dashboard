@@ -60,13 +60,13 @@ export default function KpiStrip({
   const holdings = new Set(positions.map((p) => p.symbol.trim())).size;
   const ccy = account.currency;
 
-  // Floating P&L: dirSign * (currentPrice - entryPrice) * qty per fill
-  const floating = useMemo(() => positions.reduce((s, p) => {
-    if (p.currentPrice <= 0) return s;
-    const dirSign = p.direction === "Long" ? 1 : -1;
-    const qty = Math.abs(p.marketValue) / p.currentPrice;
-    return s + dirSign * (p.currentPrice - p.entryPrice) * qty;
-  }, 0), [positions]);
+  // Floating P&L: MT5's authoritative per-position unrealized P&L. A
+  // price×qty recompute drifts from MT5 because it ignores contract size and
+  // FX conversion (e.g. EUR-denominated RHMG), so trust the field MT5 reports.
+  const floating = useMemo(
+    () => positions.reduce((s, p) => s + p.unrealizedPnl, 0),
+    [positions],
+  );
 
   // Floating % against cost basis (sum of entryPrice * qty per fill)
   const costBasis = useMemo(() => positions.reduce((s, p) => {
@@ -89,7 +89,7 @@ export default function KpiStrip({
   return (
     <div className="grid grid-cols-2 gap-3 px-6 py-5 sm:grid-cols-4 xl:grid-cols-9">
       <Card label="Equity" value={`${fmtMoney(account.equity)}`} hint={ccy} onClick={makeClick("Equity")} active={isActive("Equity")} />
-      <Card label="Balance" value={fmtMoney(account.balance)} hint="excl. credit" onClick={makeClick("Balance")} active={isActive("Balance")} />
+      <Card label="Realised PNL" value={fmtMoney(account.balance)} hint="excl. credit" onClick={makeClick("Realised PNL")} active={isActive("Realised PNL")} />
       <Card label="Credit" value={fmtMoney(account.credit)} hint="broker line" valueClass="text-cyan-300" onClick={makeClick("Credit")} active={isActive("Credit")} />
       <Card
         label="Floating P&L"
@@ -108,13 +108,13 @@ export default function KpiStrip({
         active={isActive("Yesterday P&L")}
       />
       <Card
-        label="Swap"
+        label="Swap Charges"
         value={fmtSigned(swap)}
         valueClass={`font-mono ${pnlClass(swap)}`}
-        onClick={makeClick("Swap")}
-        active={isActive("Swap")}
+        onClick={makeClick("Swap Charges")}
+        active={isActive("Swap Charges")}
       />
-      <Card label="Margin" value={fmtMoney(account.margin)} onClick={makeClick("Margin")} active={isActive("Margin")} />
+      <Card label="Margin Utilised" value={fmtMoney(account.margin)} onClick={makeClick("Margin Utilised")} active={isActive("Margin Utilised")} />
       <Card label="Free Margin" value={fmtMoney(account.freeMargin)} onClick={makeClick("Free Margin")} active={isActive("Free Margin")} />
       <Card
         label="Today Realized"

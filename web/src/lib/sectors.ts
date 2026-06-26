@@ -15,6 +15,8 @@ const MAP: Record<string, Classification> = {
   BRDCOM: { assetClass: "Equity", sector: "Information Technology", industry: "Semiconductors" },
   AVGO: { assetClass: "Equity", sector: "Information Technology", industry: "Semiconductors" },
   MSFT: { assetClass: "Equity", sector: "Information Technology", industry: "Software & Services" },
+  LITE: { assetClass: "Equity", sector: "Information Technology", industry: "Communications Equipment" },
+  LUMENTUM: { assetClass: "Equity", sector: "Information Technology", industry: "Communications Equipment" },
   AMAZON: { assetClass: "Equity", sector: "Consumer Discretionary", industry: "Broadline Retail" },
   AMZN: { assetClass: "Equity", sector: "Consumer Discretionary", industry: "Broadline Retail" },
   GOOGLE_A: { assetClass: "Equity", sector: "Communication Services", industry: "Interactive Media" },

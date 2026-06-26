@@ -68,7 +68,7 @@ function Tooltip({ info, x, y, onLearnMore }: { info: MetricInfo; x: number; y: 
   const left = typeof window !== "undefined" ? Math.min(Math.max(8, x - W / 2), window.innerWidth - W - 8) : x;
   return (
     <div
-      className="info-tt"
+      className="info-tt dark-surface"
       style={{
         position: "fixed", left, top: y, zIndex: 60, width: W, maxWidth: "calc(100vw - 16px)",
         background: "#111827", border: "1px solid #3B82F6", borderRadius: 10, padding: "12px 14px",
@@ -120,7 +120,7 @@ export function MetricModal({ info, onClose }: { info: MetricInfo; onClose: () =
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="info-tt w-full max-w-lg overflow-y-auto rounded-xl"
+        className="info-tt dark-surface w-full max-w-lg overflow-y-auto rounded-xl"
         style={{ maxHeight: "85vh", background: "#111827", border: "1px solid #3B82F6", boxShadow: "0 24px 60px rgba(0,0,0,0.7)" }}
       >
         <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-3.5">

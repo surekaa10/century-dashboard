@@ -18,7 +18,7 @@ import { fmtMoney } from "@/lib/format";
 const PERIODS = ["1W", "1M", "3M", "6M", "1Y", "All"];
 
 // P&L-style metrics centre on zero & colour by sign; level metrics scale to data.
-const PNL_METRICS = new Set(["Floating P&L", "Yesterday P&L", "Today Realized", "Swap"]);
+const PNL_METRICS = new Set(["Floating P&L", "Yesterday P&L", "Today Realized", "Swap Charges", "Realised PNL"]);
 
 export default function EquityCurve({
   positions,
@@ -54,10 +54,10 @@ export default function EquityCurve({
       return { series: floating.map((p) => ({ date: p.date, value: p.value + offset })), reconstructed: true };
     }
     const consts: Record<string, number> = {
-      Balance: account.balance,
+      "Realised PNL": account.balance,
       Credit: account.credit,
-      Swap: swap,
-      Margin: account.margin,
+      "Swap Charges": swap,
+      "Margin Utilised": account.margin,
       "Free Margin": account.freeMargin,
       "Today Realized": todayRealized,
       "Yesterday P&L": yesterdayPnl,
