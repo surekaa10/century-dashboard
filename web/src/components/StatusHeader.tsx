@@ -7,9 +7,11 @@ import ThemeToggle from "./ThemeToggle";
 export default function StatusHeader({
   snapshot,
   ageSeconds,
+  onBallotClick,
 }: {
   snapshot: Snapshot | null;
   ageSeconds: number | null;
+  onBallotClick?: () => void;
 }) {
   const connected = Boolean(snapshot?.ok && snapshot?.account);
   const stale = ageSeconds !== null && ageSeconds > 300;
@@ -31,12 +33,10 @@ export default function StatusHeader({
           </div>
           <div className="truncate font-mono text-[11px] text-slate-400 sm:text-xs">{sub}</div>
         </div>
-        <a
-          href="https://apex-platform-steel.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={onBallotClick}
           className="group flex shrink-0 items-center gap-1.5 rounded-md border border-sky-500/25 bg-sky-500/8 px-2.5 py-1.5 transition hover:border-sky-400/50 hover:bg-sky-500/15"
-          title="Open Research Ballot"
+          title="Research Ballot · Prediction Market"
         >
           <svg width="12" height="12" viewBox="0 0 32 32" className="shrink-0 opacity-70 group-hover:opacity-100">
             <polygon points="16,2 30,28 2,28" fill="none" stroke="#38bdf8" strokeWidth="2.5" />
@@ -45,7 +45,7 @@ export default function StatusHeader({
           <span className="font-mono text-[10px] font-semibold tracking-wider text-sky-400 group-hover:text-sky-300">
             BALLOT
           </span>
-        </a>
+        </button>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <span className="hidden font-mono text-xs text-slate-500 lg:inline">

@@ -18,11 +18,12 @@ import CommandCenter from "@/components/analytics/command/CommandCenter";
 import TradingAnalytics from "@/components/analytics/trading/TradingAnalytics";
 import ValidationDashboard from "@/components/analytics/validation/ValidationDashboard";
 import MetricDictionary from "@/components/analytics/glossary/MetricDictionary";
+import ResearchBallot from "@/components/ResearchBallot";
 
 const POLL_MS = 30_000;
 type Tab =
   | "overview" | "analytics" | "attribution" | "risk" | "evolution"
-  | "factors" | "margin" | "trading" | "command" | "integrity" | "glossary";
+  | "factors" | "margin" | "trading" | "command" | "integrity" | "glossary" | "ballot";
 
 export default function Page() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -69,7 +70,7 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-[#060a14] text-slate-200">
-      <StatusHeader snapshot={snapshot} ageSeconds={ageSeconds} />
+      <StatusHeader snapshot={snapshot} ageSeconds={ageSeconds} onBallotClick={() => setTab("ballot")} />
 
       {account ? (
         <>
@@ -86,6 +87,7 @@ export default function Page() {
               ["command", "Command Center"],
               ["integrity", "Integrity"],
               ["glossary", "Glossary"],
+              ["ballot", "Research Ballot"],
             ] as [Tab, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -148,6 +150,8 @@ export default function Page() {
             <ValidationDashboard snapshot={snapshot!} />
           ) : tab === "glossary" ? (
             <MetricDictionary />
+          ) : tab === "ballot" ? (
+            <ResearchBallot />
           ) : (
             <CommandCenter snapshot={snapshot!} />
           )}
