@@ -13,11 +13,17 @@ const PALETTE = ["#38bdf8", "#a78bfa", "#10b981", "#fb923c", "#fbbf24", "#f43f5e
 
 const actionColor: Record<ChangeRow["action"], string> = {
   "New Position": "bg-emerald-500/15 text-emerald-400",
-  Increased: "bg-emerald-500/15 text-emerald-400",
-  Reduced: "bg-rose-500/15 text-rose-400",
+  Added: "bg-cyan-500/15 text-cyan-300",
+  Trimmed: "bg-amber-500/15 text-amber-400",
   "Fully Exited": "bg-rose-500/15 text-rose-400",
   Unchanged: "bg-white/5 text-slate-500",
 };
+
+// "2026-06-25" → "25 Jun"
+function fmtDay(iso: string): string {
+  if (!iso) return "—";
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" });
+}
 
 // ── 2. Change log ──────────────────────────────────────────────────────────────
 
@@ -25,8 +31,8 @@ export function ChangeLogTable({ rows }: { rows: ChangeRow[] }) {
   const [q, setQ] = useState("");
   const view = rows.filter((r) => r.symbol.toLowerCase().includes(q.toLowerCase()) || r.sector.toLowerCase().includes(q.toLowerCase()));
   const csv = () => {
-    const head = "Symbol,Sector,Action,Prev Weight,Curr Weight,Change,Capital Change";
-    const body = view.map((r) => [r.symbol, `"${r.sector}"`, `"${r.action}"`, r.prevWeight.toFixed(2), r.currWeight.toFixed(2), r.change.toFixed(2), r.capitalChange.toFixed(0)].join(",")).join("\n");
+    const head = "Symbol,Sector,Action,Last Trade,Side,Prev Weight,Curr Weight,Change,Capital Change";
+    const body = view.map((r) => [r.symbol, `"${r.sector}"`, `"${r.action}"`, r.lastTradeDate || "", r.lastTradeSide || "", r.prevWeight.toFixed(2), r.currWeight.toFixed(2), r.change.toFixed(2), r.capitalChange.toFixed(0)].join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([head + "\n" + body], { type: "text/csv" }));
     a.download = "portfolio_change_log.csv";
@@ -45,6 +51,7 @@ export function ChangeLogTable({ rows }: { rows: ChangeRow[] }) {
         <table className="w-full text-sm">
           <thead><tr className="text-[11px] uppercase tracking-wider text-slate-500">
             <th className="px-4 py-2 text-left">Symbol</th><th className="px-4 py-2 text-left">Action</th>
+            <th className="px-4 py-2 text-left">Last Trade</th>
             <th className="px-4 py-2 text-right">Prev</th><th className="px-4 py-2 text-right">Current</th>
             <th className="px-4 py-2 text-right">Change</th><th className="px-4 py-2 text-right">Capital Δ</th>
           </tr></thead>
@@ -53,13 +60,23 @@ export function ChangeLogTable({ rows }: { rows: ChangeRow[] }) {
               <tr key={r.symbol} className="border-t border-white/[0.04]">
                 <td className="px-4 py-2 text-left font-sans font-medium text-slate-200">{r.symbol}<span className="ml-2 text-[10px] text-slate-600">{r.sector}</span></td>
                 <td className="px-4 py-2 text-left"><span className={`rounded px-2 py-0.5 text-xs ${actionColor[r.action]}`}>{r.action}</span></td>
+                <td className="px-4 py-2 text-left text-slate-400">
+                  {r.lastTradeDate ? (
+                    <>
+                      {fmtDay(r.lastTradeDate)}
+                      <span className={`ml-1.5 text-[10px] font-semibold ${r.lastTradeSide === "sell" ? "text-rose-400" : "text-emerald-400"}`}>
+                        {r.lastTradeSide === "sell" ? "SELL" : "BUY"}
+                      </span>
+                    </>
+                  ) : <span className="text-slate-600">—</span>}
+                </td>
                 <td className="px-4 py-2 text-right text-slate-400">{r.prevWeight.toFixed(1)}%</td>
                 <td className="px-4 py-2 text-right text-slate-300">{r.currWeight.toFixed(1)}%</td>
                 <td className={`px-4 py-2 text-right font-semibold ${pnlClass(r.change)}`}>{r.change >= 0 ? "+" : ""}{r.change.toFixed(1)}%</td>
                 <td className={`px-4 py-2 text-right ${pnlClass(r.capitalChange)}`}>{fmtSigned(r.capitalChange, 0)}</td>
               </tr>
             ))}
-            {view.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No changes in this period</td></tr>}
+            {view.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">No changes in this period</td></tr>}
           </tbody>
         </table>
       </div>

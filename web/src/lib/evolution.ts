@@ -196,11 +196,13 @@ export function startIndexFor(data: EvolutionData, period: string): number {
 export interface ChangeRow {
   symbol: string;
   sector: string;
-  action: "New Position" | "Increased" | "Reduced" | "Fully Exited" | "Unchanged";
+  action: "New Position" | "Added" | "Trimmed" | "Fully Exited" | "Unchanged";
   prevWeight: number;
   currWeight: number;
   change: number;
   capitalChange: number;
+  lastTradeDate: string;            // most recent deal date in window (YYYY-MM-DD), "" if none
+  lastTradeSide: "buy" | "sell" | "";
 }
 
 export interface PeriodAnalysis {
@@ -228,16 +230,25 @@ export function analyzePeriod(data: EvolutionData, period: string): PeriodAnalys
   const startDate = data.dates[startIdx];
   const endDate = data.dates[last];
 
-  const symbolsSet = new Set<string>([...Object.keys(startState?.weights ?? {}), ...Object.keys(endState?.weights ?? {})]);
   const windowDeals = data.deals.filter((d) => d.date >= startDate);
+  // Include symbols that traded in the window even if they net to zero weight at
+  // both ends (e.g. opened and fully closed mid-window) so exits/trims surface.
+  const symbolsSet = new Set<string>([
+    ...Object.keys(startState?.weights ?? {}),
+    ...Object.keys(endState?.weights ?? {}),
+    ...windowDeals.map((d) => d.symbol),
+  ]);
 
-  const capBySym = new Map<string, { added: number; removed: number }>();
+  type SymCap = { added: number; removed: number; boughtQty: number; soldQty: number; lastDate: string; lastSide: "buy" | "sell" };
+  const capBySym = new Map<string, SymCap>();
   const capBySec = new Map<string, { added: number; removed: number }>();
   for (const d of windowDeals) {
-    const s = capBySym.get(d.symbol) ?? { added: 0, removed: 0 };
+    const s = capBySym.get(d.symbol) ?? { added: 0, removed: 0, boughtQty: 0, soldQty: 0, lastDate: "", lastSide: "buy" as "buy" | "sell" };
     const sec = capBySec.get(d.sector) ?? { added: 0, removed: 0 };
-    if (d.side === "buy") { s.added += d.notional; sec.added += d.notional; }
-    else { s.removed += d.notional; sec.removed += d.notional; }
+    if (d.side === "buy") { s.added += d.notional; s.boughtQty += d.qty; sec.added += d.notional; }
+    else { s.removed += d.notional; s.soldQty += d.qty; sec.removed += d.notional; }
+    // windowDeals are in ascending date order → the last one seen is the most recent
+    s.lastDate = d.date; s.lastSide = d.side;
     capBySym.set(d.symbol, s);
     capBySec.set(d.sector, sec);
   }
@@ -248,15 +259,26 @@ export function analyzePeriod(data: EvolutionData, period: string): PeriodAnalys
     const curr = endState?.weights[sym] ?? 0;
     const cap = capBySym.get(sym);
     const capitalChange = (cap?.added ?? 0) - (cap?.removed ?? 0);
+    const heldStart = prev >= 0.01;
+    const heldEnd = curr >= 0.01;
+    const bought = (cap?.boughtQty ?? 0) > 1e-9;
+    const sold = (cap?.soldQty ?? 0) > 1e-9;
+    // Action is driven by actual deal activity, not the net weight delta, so a
+    // trim stays visible even when the remaining position's weight still rose.
     let action: ChangeRow["action"];
-    if (prev < 0.01 && curr >= 0.01) action = "New Position";
-    else if (curr < 0.01 && prev >= 0.01) action = "Fully Exited";
-    else if (curr - prev > 0.1) action = "Increased";
-    else if (prev - curr > 0.1) action = "Reduced";
+    if (!heldStart && heldEnd) action = "New Position";
+    else if (heldEnd && sold) action = "Trimmed";
+    else if (heldEnd && bought) action = "Added";
+    else if (!heldEnd && (heldStart || bought || sold)) action = "Fully Exited";
     else action = "Unchanged";
-    changeLog.push({ symbol: sym, sector: classify(sym).sector, action, prevWeight: prev, currWeight: curr, change: curr - prev, capitalChange });
+    changeLog.push({
+      symbol: sym, sector: classify(sym).sector, action,
+      prevWeight: prev, currWeight: curr, change: curr - prev, capitalChange,
+      lastTradeDate: cap?.lastDate ?? "", lastTradeSide: cap?.lastDate ? cap.lastSide : "",
+    });
   }
-  changeLog.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+  // Order: most recent trade first, then by weight move; Unchanged rows sink.
+  changeLog.sort((a, b) => (b.lastTradeDate || "").localeCompare(a.lastTradeDate || "") || Math.abs(b.change) - Math.abs(a.change));
 
   const newPositions = data.symbols
     .filter((s) => s.firstBuy >= startDate && !s.exited)
