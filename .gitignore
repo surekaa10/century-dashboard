@@ -11,6 +11,9 @@ snapshot.json
 # ── Pusher runtime log ───────────────────────────────────────────────────
 pusher.log
 
+# ── Research-Ballot: separate repo (apex-platform), cloned in for local work ─
+Research-Ballot/
+
 # ── Ready-to-paste Streamlit Cloud secrets (contains a token) ────────────
 streamlit_secrets_to_paste.toml
 
