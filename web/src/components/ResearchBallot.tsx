@@ -20,6 +20,11 @@ interface BallotIdea {
   approvalStatus: "APPROVED" | "PENDING" | "REVIEW";
   thesis: string;
   sector: string;
+  catalysts?: string[];
+  risks?: string[];
+  author?: string;
+  authorTitle?: string;
+  scores?: { pm: number; skill: number; rr: number; quant: number };
 }
 
 interface BallotData {
@@ -88,7 +93,7 @@ function ScoreCell({ score }: { score: number }) {
   return <span className={`font-mono text-[13px] font-semibold ${cls}`}>{score.toFixed(1)}</span>;
 }
 
-const COLS = ["Rank", "Ticker", "Dir", "Sector", "Entry", "Target", "Stop", "Exp Ret", "R:R", "Conv", "Credits", "Score", "Status"];
+const COLS = ["Rank", "Ticker", "Analyst", "Dir", "Sector", "Entry", "Target", "Stop", "Exp Ret", "R:R", "Conv", "Credits", "Score", "Status"];
 
 export default function ResearchBallot() {
   const [data, setData] = useState<BallotData | null>(null);
@@ -187,6 +192,9 @@ export default function ResearchBallot() {
                   <td className="px-3 py-2.5 font-mono text-sm font-bold text-slate-100">
                     {idea.ticker}
                   </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-slate-300">
+                    {idea.author ?? "—"}
+                  </td>
                   <td className="px-3 py-2.5">
                     <DirBadge dir={idea.dir} />
                   </td>
@@ -224,29 +232,70 @@ export default function ResearchBallot() {
 
                 {expanded === idea.id && (
                   <tr className="border-b border-cyan-500/10 bg-slate-900/40">
-                    <td colSpan={13} className="px-5 py-3">
+                    <td colSpan={14} className="px-5 py-3">
                       <div className="flex flex-wrap items-start gap-6">
-                        <div className="flex-1 min-w-[200px]">
-                          <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                            Thesis
+                        <div className="flex-1 min-w-[200px] space-y-3">
+                          <div>
+                            <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                              Thesis · {idea.author ?? "—"}{idea.authorTitle ? ` (${idea.authorTitle})` : ""}
+                            </div>
+                            <div className="font-mono text-xs leading-relaxed text-slate-300">
+                              {idea.thesis}
+                            </div>
                           </div>
-                          <div className="font-mono text-xs leading-relaxed text-slate-300">
-                            {idea.thesis}
-                          </div>
+                          {(idea.catalysts?.length || idea.risks?.length) ? (
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {idea.catalysts?.length ? (
+                                <div>
+                                  <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">Catalysts</div>
+                                  <ul className="space-y-0.5">
+                                    {idea.catalysts.map((c) => (
+                                      <li key={c} className="font-mono text-[11px] text-slate-300">+ {c}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {idea.risks?.length ? (
+                                <div>
+                                  <div className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-500/80">Risks</div>
+                                  <ul className="space-y-0.5">
+                                    {idea.risks.map((r) => (
+                                      <li key={r} className="font-mono text-[11px] text-slate-300">− {r}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="grid grid-cols-3 gap-4 shrink-0">
-                          <div>
-                            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Hold</div>
-                            <div className="mt-0.5 font-mono text-xs text-slate-200">{idea.hold}</div>
+                        <div className="shrink-0 space-y-3">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Hold</div>
+                              <div className="mt-0.5 font-mono text-xs text-slate-200">{idea.hold}</div>
+                            </div>
+                            <div>
+                              <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Pos Size</div>
+                              <div className="mt-0.5 font-mono text-xs text-slate-200">{idea.posSize}%</div>
+                            </div>
+                            <div>
+                              <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Conviction</div>
+                              <div className="mt-0.5 font-mono text-xs text-cyan-300">{idea.conv}/10</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Pos Size</div>
-                            <div className="mt-0.5 font-mono text-xs text-slate-200">{idea.posSize}%</div>
-                          </div>
-                          <div>
-                            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Conviction</div>
-                            <div className="mt-0.5 font-mono text-xs text-cyan-300">{idea.conv}/10</div>
-                          </div>
+                          {idea.scores ? (
+                            <div>
+                              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-slate-500">Score Breakdown</div>
+                              <div className="grid grid-cols-4 gap-3">
+                                {([["PM", idea.scores.pm], ["Skill", idea.scores.skill], ["R:R", idea.scores.rr], ["Quant", idea.scores.quant]] as [string, number][]).map(([k, v]) => (
+                                  <div key={k}>
+                                    <div className="font-mono text-[9px] uppercase tracking-wider text-slate-600">{k}</div>
+                                    <div className="mt-0.5 font-mono text-xs text-slate-200">{v.toFixed(1)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </td>
