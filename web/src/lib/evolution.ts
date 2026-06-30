@@ -261,15 +261,18 @@ export function analyzePeriod(data: EvolutionData, period: string): PeriodAnalys
     const capitalChange = (cap?.added ?? 0) - (cap?.removed ?? 0);
     const heldStart = prev >= 0.01;
     const heldEnd = curr >= 0.01;
-    const bought = (cap?.boughtQty ?? 0) > 1e-9;
-    const sold = (cap?.soldQty ?? 0) > 1e-9;
-    // Action is driven by actual deal activity, not the net weight delta, so a
-    // trim stays visible even when the remaining position's weight still rose.
+    const boughtQty = cap?.boughtQty ?? 0;
+    const soldQty = cap?.soldQty ?? 0;
+    const netQty = boughtQty - soldQty;   // net units traded this window
+    const traded = boughtQty > 1e-9 || soldQty > 1e-9;
+    // Action reflects the NET position change over the window, not just whether a
+    // sell occurred: buying more than you sold (net up) is "Added" even if a trim
+    // happened mid-window. The Last Trade column still surfaces the latest deal.
     let action: ChangeRow["action"];
     if (!heldStart && heldEnd) action = "New Position";
-    else if (heldEnd && sold) action = "Trimmed";
-    else if (heldEnd && bought) action = "Added";
-    else if (!heldEnd && (heldStart || bought || sold)) action = "Fully Exited";
+    else if (!heldEnd && (heldStart || traded)) action = "Fully Exited";
+    else if (heldEnd && netQty > 1e-9) action = "Added";
+    else if (heldEnd && netQty < -1e-9) action = "Trimmed";
     else action = "Unchanged";
     changeLog.push({
       symbol: sym, sector: classify(sym).sector, action,
