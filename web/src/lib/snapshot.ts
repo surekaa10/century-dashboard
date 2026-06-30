@@ -36,6 +36,8 @@ function normalizePositions(rows: Record<string, unknown>[]): Position[] {
     marketValue: num(r["Market Value"]),
     swap: num(r["Swap"]),
     openTime: String(r["Open Time"] ?? ""),
+    fullName: r["Full Name"] != null ? String(r["Full Name"]) : undefined,
+    path: r["Path"] != null ? String(r["Path"]) : undefined,
   }));
 }
 

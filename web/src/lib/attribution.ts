@@ -50,7 +50,7 @@ export function buildContribution(positions: Position[], rates: SymbolRates): Co
   const grossMvCurrent = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
 
   const perPosition: PosContrib[] = positions.map((p) => {
-    const c = classify(p.symbol);
+    const c = classify(p);
     const m = priceMap.get(p.symbol)!;
     const opened = parseOpenDate(p.openTime);
     const sign = p.direction === "Short" ? -1 : 1;

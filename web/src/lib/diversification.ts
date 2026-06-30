@@ -257,7 +257,7 @@ export function buildDiversification(positions: Position[], rates: SymbolRates, 
   const secW = new Map<string, number>();
   let goldShare = 0, usdShare = 0;
   for (const p of positions) {
-    const c = classify(p.symbol);
+    const c = classify(p);
     const w = (Math.abs(p.marketValue) / grossCur) * 100;
     secW.set(c.sector, (secW.get(c.sector) ?? 0) + w);
     if (c.assetClass === "Commodity") goldShare += w;

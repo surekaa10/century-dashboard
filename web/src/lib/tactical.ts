@@ -112,7 +112,7 @@ export function buildTactical(account: Account | null, positions: Position[], ra
     const mfePct = sign * (hi / p.entryPrice - 1) * 100, maePct = sign * (lo / p.entryPrice - 1) * 100;
     const exitEff = mfePct > 0 ? (returnPct / mfePct) * 100 : returnPct >= 0 ? 100 : 0;
     const setupScore = Math.max(0, Math.min(100, 50 + rMultiple * 20 + (exitEff - 50) * 0.2));
-    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p.symbol).sector, openDate, holdingDays, entry: p.entryPrice, current: p.currentPrice, volume: p.volume, costBasis, mv, pnl: p.unrealizedPnl, returnPct, risk, rMultiple, stopPrice, targetPrice, distToStop, distToTarget, mfePct, maePct, exitEff, setupScore };
+    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p).sector, openDate, holdingDays, entry: p.entryPrice, current: p.currentPrice, volume: p.volume, costBasis, mv, pnl: p.unrealizedPnl, returnPct, risk, rMultiple, stopPrice, targetPrice, distToStop, distToTarget, mfePct, maePct, exitEff, setupScore };
   }).sort((a, b) => b.pnl - a.pnl);
 
   // quality

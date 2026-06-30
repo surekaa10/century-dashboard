@@ -7,6 +7,7 @@ import { classify } from "./sectors";
 
 const Z95 = 1.645;
 const TRADING_DAYS = 252;
+const MIN_CORR_OBS = 20;
 
 export interface Benchmark {
   dates: string[];
@@ -221,7 +222,7 @@ function maxDrawdownPct(close: number[]): number {
   return mdd * 100;
 }
 
-// Align daily returns across symbols over their overlapping date window.
+// Align daily returns on dates where every symbol has a real close (no cross-calendar ffill).
 function alignReturns(
   rates: SymbolRates,
   symbols: string[],
@@ -235,27 +236,25 @@ function alignReturns(
     rates[s].dates.forEach((d, i) => m.set(d, rates[s].close[i]));
     maps.set(s, m);
   }
-  const start = usable.map((s) => rates[s].dates[0]).sort().reverse()[0];
-  const end = usable.map((s) => rates[s].dates[rates[s].dates.length - 1]).sort()[0];
 
-  const dateSet = new Set<string>();
-  for (const s of usable) for (const d of rates[s].dates) if (d >= start && d <= end) dateSet.add(d);
-  const dates = [...dateSet].sort();
-  if (dates.length < 3) return { dates: [], returns: {} };
+  const need = usable.length;
+  const dateCounts = new Map<string, number>();
+  for (const s of usable) {
+    for (const d of rates[s].dates) dateCounts.set(d, (dateCounts.get(d) ?? 0) + 1);
+  }
+  const commonDates = [...dateCounts.entries()]
+    .filter(([, c]) => c === need)
+    .map(([d]) => d)
+    .sort();
+  if (commonDates.length < MIN_CORR_OBS + 1) return { dates: [], returns: {} };
 
   const returns: Record<string, number[]> = {};
   for (const s of usable) {
     const m = maps.get(s)!;
-    const aligned: number[] = [];
-    let carry = NaN;
-    for (const d of dates) {
-      const v = m.get(d);
-      if (v !== undefined) carry = v;
-      aligned.push(carry);
-    }
-    returns[s] = pctReturns(aligned.filter((x) => Number.isFinite(x)));
+    const closes = commonDates.map((d) => m.get(d)!);
+    returns[s] = pctReturns(closes);
   }
-  return { dates, returns };
+  return { dates: commonDates, returns };
 }
 
 function benchmarkReturnsByDate(b?: Benchmark): Map<string, number> {
@@ -340,7 +339,7 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
   }
 
   const enriched: Enriched[] = agg.map((p) => {
-    const c = classify(p.symbol);
+    const c = classify(p);
     const basis = Math.abs(p.entryPrice * p.volume);
     const series = rates[p.symbol];
     const close = series?.close ?? [];
@@ -400,7 +399,7 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
       pnlPct,
       returnPct,
       dailyReturnPct,
-      dailyPnl: (dailyReturnPct / 100) * p.marketValue,
+      dailyPnl: (dailyReturnPct / 100) * Math.abs(p.marketValue),
       volAnnual,
       beta,
       sharpe,
@@ -422,9 +421,15 @@ export function buildAnalytics(positions: Position[], rates: SymbolRates, benchm
   const top5Pct = weightsPct.slice(0, 5).reduce((a, b) => a + b, 0);
   const top10Pct = weightsPct.slice(0, 10).reduce((a, b) => a + b, 0);
 
-  // correlation result
-  const corrSyms = histSyms;
-  const matrix = corrSyms.map((a) => corrSyms.map((b) => correlation(trimmed[a], trimmed[b])));
+  // correlation result — require overlapping return history (no spurious ffill pairs)
+  const corrSyms =
+    minLen >= MIN_CORR_OBS
+      ? histSyms.filter((s) => trimmed[s].length >= MIN_CORR_OBS)
+      : [];
+  const matrix =
+    corrSyms.length >= 2
+      ? corrSyms.map((a) => corrSyms.map((b) => correlation(trimmed[a], trimmed[b])))
+      : [];
   let sum = 0;
   let cnt = 0;
   let highest: CorrelationResult["highest"] = null;

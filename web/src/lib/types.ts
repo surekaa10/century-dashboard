@@ -24,6 +24,8 @@ export interface Position {
   marketValue: number;
   swap: number;
   openTime: string;
+  fullName?: string;   // MT5 instrument description (e.g. "ARK Genomic Revolution ETF")
+  path?: string;       // MT5 folder path (e.g. "US EQUITY\\ARKG") — drives classify()
 }
 
 export interface Deal {

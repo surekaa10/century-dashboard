@@ -96,7 +96,7 @@ export function buildDecisionQuality(account: Account | null, positions: Positio
     violations.push("No predefined stop/target"); // standing data gap
 
     const luckSkill = quadrant === 1 ? "Skill — sound process, paid off" : quadrant === 2 ? "Sound but unlucky" : quadrant === 3 ? "Luck — unsound process, lucky outcome" : "Mistake — unsound process, lost";
-    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p.symbol).sector, openDate, holdingDays, weight, returnPct, mfe, mae, exitEff, r, decision, outcome, quadrant, quadLabel: QUAD_LABEL[quadrant], components, violations, luckSkill };
+    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p).sector, openDate, holdingDays, weight, returnPct, mfe, mae, exitEff, r, decision, outcome, quadrant, quadLabel: QUAD_LABEL[quadrant], components, violations, luckSkill };
   }).sort((a, b) => a.openDate.localeCompare(b.openDate));
 
   const decisionScore = mean(trades.map((t) => t.decision));

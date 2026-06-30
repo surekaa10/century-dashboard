@@ -79,7 +79,7 @@ function computeScenarioPnl(
 ): number {
   let total = 0;
   for (const p of positions) {
-    const { assetClass } = classify(p.symbol.trim());
+    const { assetClass } = classify(p);
     const s = shock[assetClass] ?? defaultShock;
     const notional = Math.abs(p.marketValue);
     const dirSign = p.direction === "Long" ? 1 : -1;
@@ -145,7 +145,7 @@ export function buildMarginAnalytics(
         ? p.currentPrice - priceMoveToLiq
         : p.currentPrice + priceMoveToLiq;
 
-    const { assetClass, sector } = classify(p.symbol);
+    const { assetClass, sector } = classify(p);
 
     return {
       symbol: p.symbol,

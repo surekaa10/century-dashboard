@@ -106,7 +106,7 @@ export function buildStress(positions: Position[], rates: SymbolRates, raw: Raw,
         oil: beta(y, F.oil) * sign, gold: beta(y, F.gold) * sign, dxy: beta(y, F.dxy) * sign,
         growth: beta(y, F.growth) * sign, momentum: beta(y, F.momentum) * sign,
       };
-      return { symbol: p.symbol, sector: classify(p.symbol).sector, weight: (Math.abs(p.marketValue) / grossMV) * 100, mv: Math.abs(p.marketValue), betas };
+      return { symbol: p.symbol, sector: classify(p).sector, weight: (Math.abs(p.marketValue) / grossMV) * 100, mv: Math.abs(p.marketValue), betas };
     }),
   };
 

@@ -109,7 +109,8 @@ export function runValidation(snapshot: Snapshot, at: string): ValidationReport 
   countIssue("Zero / negative quantity", (r) => !(r.volume > 0), "critical",
     "A position has non-positive quantity.", "Inspect the raw fills feeding aggregation.");
   countIssue("Sector classification", (r) => !r.sector || r.sector === "Unknown" || r.sector === "Other", "warning",
-    "Sector classification unavailable for some holdings.", "Extend the classify() symbol map.");
+    "Sector classification unavailable for some holdings (no MT5 path/name signal or GICS phrase match).",
+    "Enrich the MT5 full_name/path feeding classify(), or extend its GICS phrase rules.");
   countIssue("Historical price series", (r) => !r.hasHistory, "info",
     "Some holdings lack daily history (volatility/beta use proxies).", "Backfill symbol_rates for these symbols.");
 

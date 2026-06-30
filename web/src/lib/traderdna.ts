@@ -81,7 +81,7 @@ export function buildTraderDNA(account: Account | null, positions: Position[], r
     const sizeQ = weight >= 2 && weight <= 8 ? 1 : weight < 2 ? 0.7 : clamp01((14 - weight) / 6);
     const planQ = mae > -stopPct ? 0.8 : 0.4;                    // respected the (assumed) stop
     const decision = (0.3 * entryQ + 0.25 * rr + 0.25 * sizeQ + 0.2 * planQ) * 100;
-    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p.symbol).sector, openDate: od, hour, holdingDays, entry: p.entryPrice, current: p.currentPrice, weight, pnl: p.unrealizedPnl, returnPct, mfe, mae, exitEff, r, decision, regime: regimeAt(od) };
+    return { symbol: p.symbol, strategy: strategyOf(p.symbol), sector: classify(p).sector, openDate: od, hour, holdingDays, entry: p.entryPrice, current: p.currentPrice, weight, pnl: p.unrealizedPnl, returnPct, mfe, mae, exitEff, r, decision, regime: regimeAt(od) };
   }).sort((a, b) => a.openDate.localeCompare(b.openDate));
 
   // scaling / averaging per symbol

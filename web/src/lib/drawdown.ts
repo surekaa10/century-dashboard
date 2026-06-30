@@ -145,7 +145,7 @@ export function buildDrawdown(account: Account | null, positions: Position[], ra
       const pPeak = priceAt(p.symbol, maxDD.peakDate), pTr = priceAt(p.symbol, maxDD.troughDate);
       const active = (!op || op <= maxDD.troughDate);
       const pnl = active && pPeak !== undefined && pTr !== undefined ? (p.direction === "Short" ? -1 : 1) * p.volume * (pTr - pPeak) : 0;
-      return { symbol: p.symbol, sector: classify(p.symbol).sector, pnl };
+      return { symbol: p.symbol, sector: classify(p).sector, pnl };
     });
     const agg = new Map<string, number>(); for (const r of rows) agg.set(r.symbol, (agg.get(r.symbol) ?? 0) + r.pnl);
     byPosition = [...agg.entries()].map(([symbol, pnl]) => ({ symbol, sector: classify(symbol).sector, pnl, contribPct: pnl < 0 ? (pnl / totalDrop) * 100 : 0 })).sort((a, b) => a.pnl - b.pnl).slice(0, 10);

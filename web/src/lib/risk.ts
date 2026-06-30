@@ -188,7 +188,7 @@ export function buildRisk(positions: Position[], rates: SymbolRates, days = 30):
   const rows: RiskRow[] = positions.map((p) => {
     const d = dec.perSym[p.symbol];
     const share = symMv[p.symbol] > 0 ? Math.abs(p.marketValue) / symMv[p.symbol] : 1; // split symbol-level risk across same-symbol lots
-    const c = classify(p.symbol);
+    const c = classify(p);
     return {
       symbol: p.symbol,
       sector: c.sector,

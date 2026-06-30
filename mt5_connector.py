@@ -217,6 +217,14 @@ class MT5Connector:
 
         rows = []
         for p in raw:
+            sign = 1 if p.type == 0 else -1
+            info = mt5.symbol_info(p.symbol)
+            cs = float(info.trade_contract_size) if info and info.trade_contract_size else 1.0
+            # MT5 instrument metadata that drives sector/asset-class classification.
+            # description carries the GICS theme for ETFs; path segregates by asset
+            # class/venue (e.g. "US EQUITY\…", "Metals\…", "Currency Index\…").
+            full_name = "".join(c for c in (getattr(info, "description", "") or "") if c >= " ").strip()
+            path      = getattr(info, "path", "") or ""
             rows.append({
                 "Symbol":         p.symbol,
                 "Direction":      "Long" if p.type == 0 else "Short",
@@ -224,9 +232,11 @@ class MT5Connector:
                 "Entry Price":    p.price_open,
                 "Current Price":  p.price_current,
                 "Unrealized P&L": round(p.profit, 2),
-                "Market Value":   round(p.volume * p.price_current, 2),
+                "Market Value":   round(sign * p.volume * p.price_current * cs, 2),
                 "Swap":           round(p.swap, 2),
                 "Open Time":      datetime.fromtimestamp(p.time).strftime("%d %b %Y  %H:%M"),
+                "Full Name":      full_name,
+                "Path":           path,
             })
 
         return pd.DataFrame(rows)
