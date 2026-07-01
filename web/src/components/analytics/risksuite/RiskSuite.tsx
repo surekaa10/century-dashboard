@@ -6,14 +6,16 @@ import RiskAttribution from "../risk/RiskAttribution";
 import DiversificationAnalysis from "../diversification/DiversificationAnalysis";
 import StressTesting from "../stress/StressTesting";
 import DrawdownAnalytics from "../drawdown/DrawdownAnalytics";
+import RiskAdjustedPerformance from "../riskadjusted/RiskAdjustedPerformance";
 
-type SubTab = "risk" | "diversification" | "stress" | "drawdown";
+type SubTab = "risk" | "diversification" | "stress" | "drawdown" | "adjusted";
 
 const SUBTABS: [SubTab, string, string][] = [
   ["risk", "Risk Attribution", "Volatility, VaR & risk contribution by position"],
   ["diversification", "Diversification", "Correlation, clustering & concentration"],
   ["stress", "Stress Testing", "Scenario, factor-shock & Monte-Carlo resilience"],
   ["drawdown", "Drawdown", "Peak-to-trough decline & recovery"],
+  ["adjusted", "Risk-Adjusted Performance", "Sharpe, Sortino, alpha, beta & risk efficiency"],
 ];
 
 export default function RiskSuite({ snapshot }: { snapshot: Snapshot }) {
@@ -45,6 +47,8 @@ export default function RiskSuite({ snapshot }: { snapshot: Snapshot }) {
         <DiversificationAnalysis snapshot={snapshot} />
       ) : sub === "stress" ? (
         <StressTesting snapshot={snapshot} />
+      ) : sub === "adjusted" ? (
+        <RiskAdjustedPerformance snapshot={snapshot} />
       ) : (
         <DrawdownAnalytics snapshot={snapshot} />
       )}

@@ -1,14 +1,26 @@
 import { NextResponse } from "next/server";
 
-// SPY daily closes from Yahoo's chart API (no key, server-side to avoid CORS).
-// Used for beta-vs-SPY. Degrades gracefully: returns empty series on failure.
+// Benchmark daily closes from Yahoo's chart API (no key, server-side to avoid
+// CORS). Used for beta / alpha / tracking error. Degrades gracefully: returns an
+// empty series on failure. Pass ?symbol=SPY|QQQ|URTH (default SPY).
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+// Allow-list of supported benchmark proxies → Yahoo ticker + display name.
+const BENCHMARKS: Record<string, { ticker: string; name: string }> = {
+  SPY: { ticker: "SPY", name: "S&P 500" },
+  QQQ: { ticker: "QQQ", name: "Nasdaq 100" },
+  URTH: { ticker: "URTH", name: "MSCI World" },
+  ACWI: { ticker: "ACWI", name: "MSCI ACWI" },
+  IWM: { ticker: "IWM", name: "Russell 2000" },
+};
+
+export async function GET(req: Request) {
+  const key = (new URL(req.url).searchParams.get("symbol") ?? "SPY").toUpperCase();
+  const bench = BENCHMARKS[key] ?? BENCHMARKS.SPY;
   try {
     const res = await fetch(
-      "https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1y&interval=1d",
+      `https://query1.finance.yahoo.com/v8/finance/chart/${bench.ticker}?range=1y&interval=1d`,
       { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 (century-dashboard)" } },
     );
     if (!res.ok) throw new Error(`yahoo ${res.status}`);
@@ -26,14 +38,14 @@ export async function GET() {
         close.push(c);
       }
     }
-    if (!close.length) throw new Error("no SPY closes");
+    if (!close.length) throw new Error("no closes");
 
     return NextResponse.json(
-      { symbol: "SPY", dates, close },
+      { symbol: bench.ticker, name: bench.name, dates, close },
       { headers: { "Cache-Control": "s-maxage=3600" } },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ symbol: "SPY", dates: [], close: [], error: message });
+    return NextResponse.json({ symbol: bench.ticker, name: bench.name, dates: [], close: [], error: message });
   }
 }
