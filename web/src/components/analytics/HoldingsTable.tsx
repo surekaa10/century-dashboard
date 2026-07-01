@@ -6,7 +6,11 @@ import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 
 type Key =
   | "symbol" | "assetClass" | "sector" | "volume" | "marketValue" | "weight"
+  | "cost" | "costPct"
   | "entryPrice" | "currentPrice" | "unrealizedPnl" | "pnlPct" | "dailyPnl" | "dailyReturnPct";
+
+// Enriched row + holding-cost fields derived below.
+type Row = Enriched & { cost: number; costPct: number };
 
 const COLS: { key: Key; label: string; num: boolean }[] = [
   { key: "symbol", label: "Symbol", num: false },
@@ -15,6 +19,8 @@ const COLS: { key: Key; label: string; num: boolean }[] = [
   { key: "volume", label: "Qty", num: true },
   { key: "marketValue", label: "Market Value", num: true },
   { key: "weight", label: "Weight %", num: true },
+  { key: "cost", label: "Cost", num: true },
+  { key: "costPct", label: "Cost %", num: true },
   { key: "entryPrice", label: "Entry", num: true },
   { key: "currentPrice", label: "Current", num: true },
   { key: "unrealizedPnl", label: "Unreal. P&L", num: true },
@@ -28,8 +34,17 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
   const [asc, setAsc] = useState(false);
   const [q, setQ] = useState("");
 
+  // Holding cost = capital deployed at entry, in account currency. Derived from
+  // market value scaled by entry/current so the instrument's contract size (baked
+  // into marketValue) cancels out and it stays consistent for all asset classes.
+  const withCost = useMemo<Row[]>(() => {
+    const costs = rows.map((r) => Math.abs(r.marketValue) * (r.currentPrice > 0 ? r.entryPrice / r.currentPrice : 1));
+    const total = costs.reduce((s, c) => s + c, 0) || 1;
+    return rows.map((r, i) => ({ ...r, cost: costs[i], costPct: (costs[i] / total) * 100 }));
+  }, [rows]);
+
   const view = useMemo(() => {
-    const filtered = rows.filter(
+    const filtered = withCost.filter(
       (r) =>
         r.symbol.toLowerCase().includes(q.toLowerCase()) ||
         r.sector.toLowerCase().includes(q.toLowerCase()) ||
@@ -42,7 +57,7 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
       return asc ? cmp : -cmp;
     });
     return sorted;
-  }, [rows, q, sortKey, asc]);
+  }, [withCost, q, sortKey, asc]);
 
   const downloadCsv = () => {
     const header = COLS.map((c) => c.label).join(",");
@@ -110,6 +125,8 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
                 <td className="px-3 py-2 text-right text-slate-300">{r.volume}</td>
                 <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.marketValue, 0)}</td>
                 <td className="px-3 py-2 text-right text-slate-400">{r.weight.toFixed(2)}%</td>
+                <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.cost, 0)}</td>
+                <td className="px-3 py-2 text-right text-slate-400">{r.costPct.toFixed(2)}%</td>
                 <td className="px-3 py-2 text-right text-slate-400">{fmtMoney(r.entryPrice)}</td>
                 <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.currentPrice)}</td>
                 <td className={`px-3 py-2 text-right font-semibold ${pnlClass(r.unrealizedPnl)}`}>{fmtSigned(r.unrealizedPnl, 0)}</td>
