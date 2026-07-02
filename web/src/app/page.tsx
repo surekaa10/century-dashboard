@@ -7,6 +7,7 @@ import {
   DEFAULT_BOOK_CONFIG,
   filterByBook,
   loadBookConfig,
+  loadBookConfigFromServer,
 } from "@/lib/books";
 import type { SimPosition } from "@/lib/simulation";
 import {
@@ -59,10 +60,21 @@ export default function Page() {
   const [simRates, setSimRates] = useState<SymbolRates>({});
   const [simPanelOpen, setSimPanelOpen] = useState(false);
 
-  // Load localStorage/sessionStorage config on the client (avoids SSR mismatch)
+  // Load localStorage/sessionStorage config on the client (avoids SSR mismatch).
+  // Then overlay server-side classifications so all devices/users stay in sync.
   useEffect(() => {
-    setBookConfig(loadBookConfig());
+    const local = loadBookConfig();
+    setBookConfig(local);
     setSimPositions(loadSimPositions());
+
+    loadBookConfigFromServer().then((serverConfig) => {
+      if (serverConfig) {
+        setBookConfig((prev) => ({
+          classifications: { ...prev.classifications, ...serverConfig.classifications },
+          riskBudget: serverConfig.riskBudget,
+        }));
+      }
+    });
   }, []);
 
   // ── Live snapshot polling ────────────────────────────────────────────────────
@@ -286,7 +298,10 @@ export default function Page() {
                       classifications: { ...bookConfig.classifications, [sym]: book },
                     };
                     setBookConfig(next);
-                    import("@/lib/books").then((m) => m.saveBookConfig(next));
+                    import("@/lib/books").then((m) => {
+                      m.saveBookConfig(next);
+                      m.saveBookConfigToServer(next);
+                    });
                   }}
                   onRemoveSim={(sym) => {
                     const target = simPositions.find((p) => p.symbol === sym);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { BookConfig, BookType } from "@/lib/books";
-import { saveBookConfig } from "@/lib/books";
+import { saveBookConfig, saveBookConfigToServer } from "@/lib/books";
 
 export default function BookClassifier({
   symbols,
@@ -17,8 +17,9 @@ export default function BookClassifier({
 }) {
   const [draft, setDraft] = useState<BookConfig>(() => ({
     classifications: { ...config.classifications },
-    tradingCapital: config.tradingCapital,
+    riskBudget: config.riskBudget,
   }));
+  const [saving, setSaving] = useState(false);
 
   const setBook = (symbol: string, book: BookType) => {
     setDraft((prev) => ({
@@ -27,9 +28,14 @@ export default function BookClassifier({
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    // 1. Persist locally (instant)
     saveBookConfig(draft);
+    // 2. Persist to server (cross-device, all users)
+    await saveBookConfigToServer(draft);
     onSave(draft);
+    setSaving(false);
     onClose();
   };
 
@@ -39,7 +45,6 @@ export default function BookClassifier({
   const tradeCount = symbols.length - investCount;
 
   return (
-    /* backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -48,40 +53,32 @@ export default function BookClassifier({
         {/* header */}
         <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
           <div>
-            <div className="text-sm font-semibold text-slate-100">
-              Classify Positions
-            </div>
+            <div className="text-sm font-semibold text-slate-100">Classify Positions</div>
             <div className="mt-0.5 text-[11px] text-slate-500">
-              {investCount} Investment · {tradeCount} Trading
+              {investCount} Investment · {tradeCount} Trading · saved to server
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-500 transition hover:text-slate-300"
-          >
+          <button onClick={onClose} className="text-slate-500 transition hover:text-slate-300">
             ✕
           </button>
         </div>
 
-        {/* trading capital input */}
+        {/* risk budget input — CORRECTLY labelled as max loss limit */}
         <div className="border-b border-white/[0.06] px-5 py-3">
-          <label className="flex items-center gap-3">
+          <label className="flex flex-wrap items-center gap-3">
             <span className="shrink-0 text-[11px] uppercase tracking-wider text-slate-500">
-              Trading Capital ($)
+              Max Loss Budget ($)
             </span>
             <input
               type="number"
-              value={draft.tradingCapital}
+              value={draft.riskBudget}
               onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  tradingCapital: Number(e.target.value) || 0,
-                }))
+                setDraft((prev) => ({ ...prev, riskBudget: Number(e.target.value) || 0 }))
               }
-              className="w-32 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1 font-mono text-sm text-slate-200 outline-none focus:border-cyan-500/50"
+              className="w-32 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1 font-mono text-sm text-slate-200 outline-none focus:border-orange-500/50"
             />
-            <span className="text-[11px] text-slate-600">
-              virtual allocation for trading book
+            <span className="text-[11px] text-orange-400/70">
+              maximum cumulative loss allowed on trading book — NOT trading capital
             </span>
           </label>
         </div>
@@ -108,9 +105,7 @@ export default function BookClassifier({
                       key={sym}
                       className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.02]"
                     >
-                      <td className="px-5 py-2.5 font-mono font-semibold text-slate-200">
-                        {sym}
-                      </td>
+                      <td className="px-5 py-2.5 font-mono font-semibold text-slate-200">{sym}</td>
                       <td className="px-5 py-2.5 text-right">
                         <div className="inline-flex overflow-hidden rounded-md border border-white/[0.08]">
                           <button
@@ -153,9 +148,10 @@ export default function BookClassifier({
           </button>
           <button
             onClick={handleSave}
-            className="rounded-md bg-cyan-600/80 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-cyan-600"
+            disabled={saving}
+            className="rounded-md bg-cyan-600/80 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:opacity-50"
           >
-            Save
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

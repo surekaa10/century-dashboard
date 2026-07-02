@@ -5,8 +5,9 @@ import type { Snapshot } from "@/lib/types";
 import TacticalDashboard from "@/components/analytics/tactical/TacticalDashboard";
 import TraderDNA from "@/components/analytics/dna/TraderDNA";
 import DecisionQuality from "@/components/analytics/decision/DecisionQuality";
+import ClosedTrades from "@/components/analytics/trading/ClosedTrades";
 
-type Sub = "tactical" | "dna" | "decision";
+type Sub = "tactical" | "dna" | "decision" | "journal";
 
 export default function TradingAnalytics({ snapshot }: { snapshot: Snapshot }) {
   const [sub, setSub] = useState<Sub>("tactical");
@@ -17,6 +18,7 @@ export default function TradingAnalytics({ snapshot }: { snapshot: Snapshot }) {
           ["tactical", "Tactical Book"],
           ["dna", "Trader DNA"],
           ["decision", "Decision Quality"],
+          ["journal", "Trade Journal"],
         ] as [Sub, string][]).map(([k, label]) => (
           <button
             key={k}
@@ -33,10 +35,12 @@ export default function TradingAnalytics({ snapshot }: { snapshot: Snapshot }) {
         <TacticalDashboard snapshot={snapshot} />
       ) : sub === "dna" ? (
         <TraderDNA snapshot={snapshot} />
-      ) : (
+      ) : sub === "decision" ? (
         <div className="px-6 pb-10 pt-4">
           <DecisionQuality snapshot={snapshot} />
         </div>
+      ) : (
+        <ClosedTrades />
       )}
     </div>
   );
