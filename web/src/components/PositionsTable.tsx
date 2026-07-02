@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useState } from "react";
 import type { Position } from "@/lib/types";
+import type { BookConfig, BookType, BookView } from "@/lib/books";
+import { getBook } from "@/lib/books";
 import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 
 function groupBySymbol(positions: Position[]): Map<string, Position[]> {
@@ -17,12 +19,14 @@ interface Row {
   sym: string; fills: Position[]; direction: "Long" | "Short";
   totalVol: number; avgEntry: number; currentPrice: number;
   totalMvSym: number; costValue: number; totalPnl: number; pnlPct: number; weight: number;
+  book: BookType;
 }
 
-type SortKey = "symbol" | "side" | "qty" | "avg" | "current" | "mv" | "cost" | "pnl" | "pnlpct" | "weight";
+type SortKey = "symbol" | "side" | "book" | "qty" | "avg" | "current" | "mv" | "cost" | "pnl" | "pnlpct" | "weight";
 
 const COLUMNS: { key: SortKey; label: string; align: "left" | "right"; numeric: boolean }[] = [
   { key: "symbol", label: "Symbol", align: "left", numeric: false },
+  { key: "book", label: "Book", align: "left", numeric: false },
   { key: "side", label: "Side", align: "left", numeric: false },
   { key: "qty", label: "Total Qty", align: "right", numeric: true },
   { key: "avg", label: "Avg Entry", align: "right", numeric: true },
@@ -37,6 +41,7 @@ const COLUMNS: { key: SortKey; label: string; align: "left" | "right"; numeric: 
 const sortValue = (r: Row, k: SortKey): number | string => {
   switch (k) {
     case "symbol": return r.sym;
+    case "book": return r.book;
     case "side": return r.direction;
     case "qty": return r.totalVol;
     case "avg": return r.avgEntry;
@@ -49,15 +54,63 @@ const sortValue = (r: Row, k: SortKey): number | string => {
   }
 };
 
-export default function PositionsTable({ positions }: { positions: Position[] }) {
+function BookBadge({
+  sym,
+  book,
+  onClick,
+}: {
+  sym: string;
+  book: BookType;
+  onClick?: (sym: string, book: BookType) => void;
+}) {
+  const toggle = () => onClick?.(sym, book === "investment" ? "trading" : "investment");
+  return (
+    <button
+      onClick={toggle}
+      title={onClick ? `Click to move ${sym} to ${book === "investment" ? "Trading" : "Investment"}` : undefined}
+      className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+        onClick ? "cursor-pointer" : "cursor-default"
+      } ${
+        book === "trading"
+          ? "bg-orange-500/15 text-orange-400 hover:bg-orange-500/25"
+          : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+      }`}
+    >
+      {book === "trading" ? "Trading" : "Invest"}
+    </button>
+  );
+}
+
+export default function PositionsTable({
+  positions,
+  allPositions,
+  bookConfig,
+  activeBook,
+  onBookChange,
+}: {
+  positions: Position[];
+  allPositions?: Position[];
+  bookConfig?: BookConfig;
+  activeBook?: BookView;
+  onBookChange?: (symbol: string, book: BookType) => void;
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [showAll, setShowAll] = useState(false);
 
-  const totalMv = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
+  // In Combined view, show all positions. In Investment/Trading view, the parent
+  // has already filtered `positions`. We offer a "Show all" toggle so users can
+  // see unclassified positions too.
+  const displayPositions = useMemo(() => {
+    if (showAll && allPositions) return allPositions;
+    return positions;
+  }, [positions, allPositions, showAll]);
+
+  const totalMv = displayPositions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
 
   const rows = useMemo<Row[]>(() => {
-    const grouped = groupBySymbol(positions);
+    const grouped = groupBySymbol(displayPositions);
     const built: Row[] = [...grouped.keys()].map((sym) => {
       const fills = grouped.get(sym)!;
       const totalVol = fills.reduce((s, p) => s + p.volume, 0);
@@ -66,11 +119,13 @@ export default function PositionsTable({ positions }: { positions: Position[] })
       const totalMvSym = fills.reduce((s, p) => s + p.marketValue, 0);
       const totalPnl = fills.reduce((s, p) => s + p.unrealizedPnl, 0);
       const basis = Math.abs(avgEntry * totalVol);
+      const book = bookConfig ? getBook(sym, bookConfig) : "investment";
       return {
         sym, fills, direction: fills[0].direction, totalVol, avgEntry,
         currentPrice: fills[0].currentPrice, totalMvSym, costValue, totalPnl,
         pnlPct: basis > 0 ? (totalPnl / basis) * 100 : 0,
         weight: (Math.abs(totalMvSym) / totalMv) * 100,
+        book,
       };
     });
     const dir = sortDir === "asc" ? 1 : -1;
@@ -80,12 +135,12 @@ export default function PositionsTable({ positions }: { positions: Position[] })
       return ((va as number) - (vb as number)) * dir;
     });
     return built;
-  }, [positions, totalMv, sortKey, sortDir]);
+  }, [displayPositions, totalMv, sortKey, sortDir, bookConfig]);
 
   const onSort = (k: SortKey, numeric: boolean) => {
     if (k === sortKey) { setSortDir((d) => (d === "asc" ? "desc" : "asc")); return; }
     setSortKey(k);
-    setSortDir(numeric ? "desc" : "asc"); // numbers default high→low, text A→Z
+    setSortDir(numeric ? "desc" : "asc");
   };
 
   const toggle = (sym: string) =>
@@ -96,16 +151,32 @@ export default function PositionsTable({ positions }: { positions: Position[] })
     });
 
   const symbolsLen = rows.length;
+  const showAllToggle = activeBook && activeBook !== "combined" && allPositions && allPositions.length !== positions.length;
 
   return (
     <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012]">
-      <div className="border-b border-cyan-500/10 px-4 py-3 text-sm font-semibold text-slate-200">
-        Open Positions{" "}
-        <span className="text-slate-500">
-          ({symbolsLen} instrument{symbolsLen !== 1 ? "s" : ""}
-          {positions.length !== symbolsLen ? `, ${positions.length} fills` : ""})
+      <div className="flex items-center gap-3 border-b border-cyan-500/10 px-4 py-3">
+        <span className="text-sm font-semibold text-slate-200">
+          Open Positions{" "}
+          <span className="text-slate-500">
+            ({symbolsLen} instrument{symbolsLen !== 1 ? "s" : ""}
+            {displayPositions.length !== symbolsLen ? `, ${displayPositions.length} fills` : ""})
+          </span>
         </span>
-        <span className="ml-2 font-normal text-[11px] text-slate-600">· click a column to sort ↑/↓</span>
+        <span className="ml-1 font-normal text-[11px] text-slate-600">· click a column to sort ↑/↓</span>
+        {showAllToggle && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="ml-auto rounded border border-white/[0.08] px-2.5 py-0.5 text-[11px] text-slate-500 transition hover:text-slate-300"
+          >
+            {showAll ? "Show book only" : "Show all positions"}
+          </button>
+        )}
+        {bookConfig && onBookChange && (
+          <span className="ml-auto text-[11px] text-slate-600">
+            · click <span className="text-blue-400">Invest</span>/<span className="text-orange-400">Trading</span> badge to reassign
+          </span>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -137,7 +208,6 @@ export default function PositionsTable({ positions }: { positions: Position[] })
               const multiFill = r.fills.length > 1;
               return (
                 <Fragment key={r.sym}>
-                  {/* ── Instrument summary row ── */}
                   <tr
                     onClick={() => multiFill && toggle(r.sym)}
                     className={`border-t border-white/[0.04] transition-colors ${multiFill ? "cursor-pointer hover:bg-white/[0.025]" : ""}`}
@@ -148,6 +218,13 @@ export default function PositionsTable({ positions }: { positions: Position[] })
                     <td className="px-4 py-2.5 text-left">
                       <span className="font-sans font-semibold text-slate-200">{r.sym}</span>
                       {multiFill && <span className="ml-2 text-[10px] text-slate-600">{r.fills.length} fills</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-left">
+                      <BookBadge
+                        sym={r.sym}
+                        book={r.book}
+                        onClick={onBookChange}
+                      />
                     </td>
                     <td className="px-4 py-2.5 text-left">
                       <span className={r.direction === "Long" ? "rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400" : "rounded bg-rose-500/10 px-2 py-0.5 text-xs text-rose-400"}>
@@ -164,7 +241,6 @@ export default function PositionsTable({ positions }: { positions: Position[] })
                     <td className="px-4 py-2.5 text-right text-slate-400">{r.weight.toFixed(2)}%</td>
                   </tr>
 
-                  {/* ── Individual fill rows (expanded) ── */}
                   {isOpen &&
                     r.fills.map((fill, i) => (
                       <tr key={`${r.sym}-fill-${i}`} className="border-t border-white/[0.02] bg-cyan-500/[0.02]">
@@ -173,6 +249,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
                           &nbsp;&nbsp;└ Fill {i + 1}
                           <span className="ml-2 text-slate-600">{fill.openTime}</span>
                         </td>
+                        <td className="px-4 py-1.5" />
                         <td className="px-4 py-1.5" />
                         <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fill.volume.toFixed(4)}</td>
                         <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.entryPrice)}</td>
@@ -189,7 +266,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
             })}
             {symbolsLen === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">No open positions</td>
+                <td colSpan={12} className="px-4 py-8 text-center text-slate-500">No open positions</td>
               </tr>
             )}
           </tbody>
