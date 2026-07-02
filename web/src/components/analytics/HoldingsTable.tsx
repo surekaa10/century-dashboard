@@ -4,13 +4,23 @@ import { useMemo, useState } from "react";
 import type { Enriched } from "@/lib/analytics";
 import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 
+const MONTHS: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+// "15 May 2026  22:49" → epoch ms (UTC midnight of the open date); 0 if unparseable.
+function parseOpenMs(openTime: string): number {
+  const t = openTime.trim().split(/\s+/);
+  if (t.length < 3) return 0;
+  const dd = parseInt(t[0], 10), mo = MONTHS[t[1]?.slice(0, 3).toLowerCase()], yy = parseInt(t[2], 10);
+  if (!Number.isFinite(dd) || mo === undefined || !Number.isFinite(yy)) return 0;
+  return Date.UTC(yy, mo, dd);
+}
+
 type Key =
   | "symbol" | "assetClass" | "sector" | "volume" | "marketValue" | "weight"
-  | "cost" | "costPct"
+  | "swapPa" | "swap"
   | "entryPrice" | "currentPrice" | "unrealizedPnl" | "pnlPct" | "dailyPnl" | "dailyReturnPct";
 
-// Enriched row + holding-cost fields derived below.
-type Row = Enriched & { cost: number; costPct: number };
+// Enriched row + annualized swap-cost field derived below.
+type Row = Enriched & { swapPa: number };
 
 const COLS: { key: Key; label: string; num: boolean }[] = [
   { key: "symbol", label: "Symbol", num: false },
@@ -19,8 +29,8 @@ const COLS: { key: Key; label: string; num: boolean }[] = [
   { key: "volume", label: "Qty", num: true },
   { key: "marketValue", label: "Market Value", num: true },
   { key: "weight", label: "Weight %", num: true },
-  { key: "cost", label: "Cost", num: true },
-  { key: "costPct", label: "Cost %", num: true },
+  { key: "swapPa", label: "Swap % p.a.", num: true },
+  { key: "swap", label: "Swap $", num: true },
   { key: "entryPrice", label: "Entry", num: true },
   { key: "currentPrice", label: "Current", num: true },
   { key: "unrealizedPnl", label: "Unreal. P&L", num: true },
@@ -34,17 +44,22 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
   const [asc, setAsc] = useState(false);
   const [q, setQ] = useState("");
 
-  // Holding cost = capital deployed at entry, in account currency. Derived from
-  // market value scaled by entry/current so the instrument's contract size (baked
-  // into marketValue) cancels out and it stays consistent for all asset classes.
-  const withCost = useMemo<Row[]>(() => {
-    const costs = rows.map((r) => Math.abs(r.marketValue) * (r.currentPrice > 0 ? r.entryPrice / r.currentPrice : 1));
-    const total = costs.reduce((s, c) => s + c, 0) || 1;
-    return rows.map((r, i) => ({ ...r, cost: costs[i], costPct: (costs[i] / total) * 100 }));
+  // Swap % p.a. = the overnight financing charge, annualized. MT5 gives the swap
+  // accrued since the position opened, so we average it per day and scale to a
+  // year, expressed against the position's notional (market value).
+  const withSwap = useMemo<Row[]>(() => {
+    const now = Date.now();
+    return rows.map((r) => {
+      const openMs = parseOpenMs(r.openTime);
+      const days = openMs ? Math.max(1, (now - openMs) / 86400000) : 0;
+      const notional = Math.abs(r.marketValue);
+      const swapPa = days > 0 && notional > 0 ? ((r.swap / days) * 365 / notional) * 100 : 0;
+      return { ...r, swapPa };
+    });
   }, [rows]);
 
   const view = useMemo(() => {
-    const filtered = withCost.filter(
+    const filtered = withSwap.filter(
       (r) =>
         r.symbol.toLowerCase().includes(q.toLowerCase()) ||
         r.sector.toLowerCase().includes(q.toLowerCase()) ||
@@ -57,7 +72,7 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
       return asc ? cmp : -cmp;
     });
     return sorted;
-  }, [withCost, q, sortKey, asc]);
+  }, [withSwap, q, sortKey, asc]);
 
   const downloadCsv = () => {
     const header = COLS.map((c) => c.label).join(",");
@@ -125,8 +140,8 @@ export default function HoldingsTable({ rows }: { rows: Enriched[] }) {
                 <td className="px-3 py-2 text-right text-slate-300">{r.volume}</td>
                 <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.marketValue, 0)}</td>
                 <td className="px-3 py-2 text-right text-slate-400">{r.weight.toFixed(2)}%</td>
-                <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.cost, 0)}</td>
-                <td className="px-3 py-2 text-right text-slate-400">{r.costPct.toFixed(2)}%</td>
+                <td className={`px-3 py-2 text-right ${pnlClass(r.swapPa)}`}>{r.swapPa >= 0 ? "+" : ""}{r.swapPa.toFixed(2)}%</td>
+                <td className={`px-3 py-2 text-right ${pnlClass(r.swap)}`}>{fmtSigned(r.swap, 2)}</td>
                 <td className="px-3 py-2 text-right text-slate-400">{fmtMoney(r.entryPrice)}</td>
                 <td className="px-3 py-2 text-right text-slate-300">{fmtMoney(r.currentPrice)}</td>
                 <td className={`px-3 py-2 text-right font-semibold ${pnlClass(r.unrealizedPnl)}`}>{fmtSigned(r.unrealizedPnl, 0)}</td>
