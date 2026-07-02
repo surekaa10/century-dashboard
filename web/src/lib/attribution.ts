@@ -199,6 +199,153 @@ export function sectorAttribution(perPosition: PosContrib[]): SectorAttr[] {
     .sort((a, b) => b.contribUsd - a.contribUsd);
 }
 
+// ── period-aware sector attribution ────────────────────────────────────────────
+// Like sectorAttribution() but restricts returns to a lookback window so they
+// match the same period used for the benchmark comparison.
+
+export function sectorAttributionForPeriod(
+  perPosition: PosContrib[],
+  dates: string[],
+  _mvSeries: number[],
+  lookback: number,
+): SectorAttr[] {
+  const n = dates.length;
+  if (!n) return [];
+  const last = n - 1;
+
+  let startIdx: number;
+  if (lookback === 0) {
+    startIdx = 0;
+  } else if (lookback < 0) {
+    const jan1 = `${new Date().getUTCFullYear()}-01-01`;
+    const found = dates.findIndex((d) => d >= jan1);
+    startIdx = found < 0 ? 0 : Math.min(found, last - 1);
+  } else {
+    startIdx = Math.max(0, last - lookback);
+  }
+
+  const gross = perPosition.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
+  const m = new Map<string, { mv: number; wret: number; contribPct: number; usd: number; n: number }>();
+
+  for (const p of perPosition) {
+    const periodUsd = (p.cum[last] ?? 0) - (p.cum[startIdx] ?? 0);
+    const periodRet = Math.abs(p.marketValue) > 0 ? (periodUsd / Math.abs(p.marketValue)) * 100 : 0;
+    const weight = (Math.abs(p.marketValue) / gross) * 100;
+
+    const e = m.get(p.sector) ?? { mv: 0, wret: 0, contribPct: 0, usd: 0, n: 0 };
+    e.mv        += Math.abs(p.marketValue);
+    e.wret      += Math.abs(p.marketValue) * periodRet;
+    e.contribPct += (weight / 100) * periodRet;
+    e.usd       += periodUsd;
+    e.n         += 1;
+    m.set(p.sector, e);
+  }
+
+  return [...m.entries()]
+    .map(([sector, e]) => ({
+      sector,
+      weight:     (e.mv / gross) * 100,
+      returnPct:  e.mv ? e.wret / e.mv : 0,
+      contribPct: e.contribPct,
+      contribUsd: e.usd,
+      holdings:   e.n,
+    }))
+    .sort((a, b) => b.contribUsd - a.contribUsd);
+}
+
+// ── monthly returns calendar ───────────────────────────────────────────────────
+
+export interface MonthlyReturn {
+  year: number;
+  month: number; // 1–12
+  ret: number;   // % return
+}
+
+export function computeMonthlyReturns(data: ContributionData): MonthlyReturn[] {
+  const monthMap = new Map<string, { sumContrib: number; startMv: number }>();
+
+  for (let i = 0; i < data.dates.length; i++) {
+    const ym = data.dates[i].slice(0, 7); // "2025-06"
+    if (!monthMap.has(ym)) {
+      const startMv = i > 0 ? (data.mvSeries[i - 1] || data.baseValue) : data.mvSeries[0] || data.baseValue;
+      monthMap.set(ym, { sumContrib: data.portfolioDaily[i], startMv });
+    } else {
+      monthMap.get(ym)!.sumContrib += data.portfolioDaily[i];
+    }
+  }
+
+  const results: MonthlyReturn[] = [];
+  for (const [ym, { sumContrib, startMv }] of monthMap) {
+    const [year, month] = ym.split("-").map(Number);
+    results.push({ year, month, ret: startMv > 0 ? (sumContrib / startMv) * 100 : 0 });
+  }
+  return results.sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+}
+
+// ── trade attribution from deals ───────────────────────────────────────────────
+
+import type { Deal } from "./types";
+
+export interface TradeAttrib {
+  symbol: string;
+  direction: "Long" | "Short";
+  openTime: string;
+  closeTime: string;
+  holdingDays: number;
+  volume: number;
+  entryPrice: number;
+  exitPrice: number;
+  grossPnl: number;
+  commission: number;
+  swap: number;
+  netPnl: number;
+}
+
+export function computeTradeAttribution(deals: Deal[]): TradeAttrib[] {
+  const bySymbol = new Map<string, Deal[]>();
+  for (const d of deals) {
+    const arr = bySymbol.get(d.symbol) ?? [];
+    arr.push(d);
+    bySymbol.set(d.symbol, arr);
+  }
+
+  const result: TradeAttrib[] = [];
+  for (const [symbol, sDeals] of bySymbol) {
+    const opens  = sDeals.filter((d) => d.entry === 0);
+    const closes = sDeals.filter((d) => d.entry === 1 && d.profit !== 0);
+    if (!closes.length) continue;
+
+    const grossPnl    = closes.reduce((s, d) => s + d.profit, 0);
+    const commission  = sDeals.reduce((s, d) => s + d.commission, 0);
+    const swap        = sDeals.reduce((s, d) => s + d.swap, 0);
+    const volume      = closes.reduce((s, d) => s + d.volume, 0);
+
+    const totalOpenVol = opens.reduce((s, d) => s + d.volume, 0);
+    const entryPrice   = totalOpenVol > 0
+      ? opens.reduce((s, d) => s + d.price * d.volume, 0) / totalOpenVol
+      : (opens[0]?.price ?? 0);
+    const exitPrice    = volume > 0
+      ? closes.reduce((s, d) => s + d.price * d.volume, 0) / volume
+      : closes[closes.length - 1].price;
+
+    const openDeal  = opens[0];
+    const direction: "Long" | "Short" = openDeal ? (openDeal.type === 0 ? "Long" : "Short") : "Long";
+
+    const openTimes  = opens.map((d) => new Date(d.time).getTime()).filter((t) => !isNaN(t));
+    const closeTimes = closes.map((d) => new Date(d.time).getTime()).filter((t) => !isNaN(t));
+    const openTime   = openTimes.length  ? new Date(Math.min(...openTimes)).toISOString()  : "";
+    const closeTime  = closeTimes.length ? new Date(Math.max(...closeTimes)).toISOString() : "";
+    const holdingDays = openTime && closeTime
+      ? Math.round((new Date(closeTime).getTime() - new Date(openTime).getTime()) / 86_400_000)
+      : 0;
+
+    result.push({ symbol, direction, openTime, closeTime, holdingDays, volume,
+                  entryPrice, exitPrice, grossPnl, commission, swap, netPnl: grossPnl + commission + swap });
+  }
+
+  return result.sort((a, b) => b.netPnl - a.netPnl);
+}
+
 // group cumulative $ contribution by a key (sector / assetClass)
 export function groupCumulative(d: ContributionData, by: "symbol" | "sector" | "assetClass", topN = 8): { keys: string[]; rows: { date: string; [k: string]: number | string }[] } {
   const groups = new Map<string, number[]>();
