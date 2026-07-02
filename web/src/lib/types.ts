@@ -26,6 +26,7 @@ export interface Position {
   openTime: string;
   fullName?: string;   // MT5 instrument description (e.g. "ARK Genomic Revolution ETF")
   path?: string;       // MT5 folder path (e.g. "US EQUITY\\ARKG") — drives classify()
+  simulated?: boolean; // true for in-memory scenario positions — never persisted to DB
 }
 
 export interface Deal {

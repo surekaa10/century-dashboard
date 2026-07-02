@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Snapshot } from "@/lib/types";
+import type { Snapshot, SymbolRates } from "@/lib/types";
 import type { BookConfig, BookView } from "@/lib/books";
 import {
   DEFAULT_BOOK_CONFIG,
   filterByBook,
   loadBookConfig,
 } from "@/lib/books";
+import type { SimPosition } from "@/lib/simulation";
+import {
+  loadSimPositions,
+  saveSimPositions,
+  simToPosition,
+  simToRates,
+} from "@/lib/simulation";
 import StatusHeader from "@/components/StatusHeader";
 import BookSelector from "@/components/BookSelector";
 import BookClassifier from "@/components/BookClassifier";
+import SimulationBanner from "@/components/SimulationBanner";
+import SimulationPanel from "@/components/SimulationPanel";
 import KpiStrip from "@/components/KpiStrip";
 import TradingKpiStrip from "@/components/TradingKpiStrip";
 import PositionsTable from "@/components/PositionsTable";
@@ -40,15 +49,23 @@ export default function Page() {
   const [tab, setTab] = useState<Tab>("overview");
   const [kpiMetric, setKpiMetric] = useState<string>("Floating P&L");
 
-  // Book segregation state — load from localStorage after mount to avoid SSR mismatch
+  // ── Book segregation ─────────────────────────────────────────────────────────
   const [bookConfig, setBookConfig] = useState<BookConfig>(DEFAULT_BOOK_CONFIG);
   const [activeBook, setActiveBook] = useState<BookView>("combined");
   const [classifierOpen, setClassifierOpen] = useState(false);
 
+  // ── Simulation overlay ───────────────────────────────────────────────────────
+  const [simPositions, setSimPositions] = useState<SimPosition[]>([]);
+  const [simRates, setSimRates] = useState<SymbolRates>({});
+  const [simPanelOpen, setSimPanelOpen] = useState(false);
+
+  // Load localStorage/sessionStorage config on the client (avoids SSR mismatch)
   useEffect(() => {
     setBookConfig(loadBookConfig());
+    setSimPositions(loadSimPositions());
   }, []);
 
+  // ── Live snapshot polling ────────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -83,37 +100,101 @@ export default function Page() {
   const ageSeconds = snapshot?.generatedAt
     ? Math.max(0, (now - new Date(snapshot.generatedAt).getTime()) / 1000)
     : null;
-
   const account = snapshot?.account ?? null;
 
-  // All unique symbols from the current snapshot — used by BookClassifier
-  const allSymbols = useMemo(
+  // ── Symbols for the BookClassifier modal (live positions only) ───────────────
+  const allLiveSymbols = useMemo(
     () =>
       [...new Set((snapshot?.positions ?? []).map((p) => p.symbol.trim()))].sort(),
     [snapshot?.positions],
   );
 
-  // Filtered snapshot for analytics components — only positions in the active book.
-  // All calculation functions accept positions[], so this single filter propagates
-  // throughout every tab automatically.
-  const activeSnapshot = useMemo<Snapshot | null>(() => {
+  // ── Simulation helpers ───────────────────────────────────────────────────────
+  const addSimPosition = (
+    pos: SimPosition,
+    rates: Record<string, { dates: string[]; close: number[] }>,
+  ) => {
+    const next = [...simPositions, pos];
+    setSimPositions(next);
+    saveSimPositions(next);
+    if (Object.keys(rates).length) {
+      setSimRates((prev) => ({ ...prev, ...rates }));
+    }
+  };
+
+  const removeSimPosition = (id: string) => {
+    const next = simPositions.filter((p) => p.id !== id);
+    setSimPositions(next);
+    saveSimPositions(next);
+    // Clean up rates for symbols that no longer have any simulated position
+    const remaining = new Set(next.map((p) => p.symbol));
+    setSimRates((prev) => {
+      const cleaned = { ...prev };
+      for (const sym of Object.keys(cleaned)) {
+        if (!remaining.has(sym)) delete cleaned[sym];
+      }
+      return cleaned;
+    });
+  };
+
+  const clearAllSim = () => {
+    setSimPositions([]);
+    setSimRates({});
+    saveSimPositions([]);
+  };
+
+  // ── Effective snapshot ───────────────────────────────────────────────────────
+  // This is the single snapshot every component receives.
+  // Live portfolio is NEVER modified — we build a new object each render.
+  //
+  //  1. Filter live positions by active book
+  //  2. If "simulated" view → show only simulated positions
+  //     Otherwise → live (book-filtered) + all simulated positions
+  //  3. Merge symbol rates so analytics can compute vol/beta for sim symbols
+  const effectiveSnapshot = useMemo<Snapshot | null>(() => {
     if (!snapshot) return null;
-    if (activeBook === "combined") return snapshot;
+
+    const simPos = simPositions.map(simToPosition);
+    let basePositions;
+
+    if (activeBook === "simulated") {
+      // Simulated-only view
+      basePositions = simPos;
+    } else {
+      // Live positions filtered by book + all simulated positions on top
+      const live = filterByBook(snapshot.positions, bookConfig, activeBook);
+      basePositions = [...live, ...simPos];
+    }
+
     return {
       ...snapshot,
-      positions: filterByBook(snapshot.positions, bookConfig, activeBook),
+      positions: basePositions,
+      symbolRates: { ...snapshot.symbolRates, ...simRates },
     };
-  }, [snapshot, activeBook, bookConfig]);
+  }, [snapshot, activeBook, bookConfig, simPositions, simRates]);
 
-  // Convenience aliases used in the Overview tab
-  const visiblePositions = activeSnapshot?.positions ?? [];
+  const visiblePositions = effectiveSnapshot?.positions ?? [];
+  const simActive = simPositions.length > 0;
 
   return (
     <main className="min-h-screen bg-[#060a14] text-slate-200">
-      <StatusHeader snapshot={snapshot} ageSeconds={ageSeconds} onBallotClick={() => setTab("ballot")} />
+      <StatusHeader
+        snapshot={snapshot}
+        ageSeconds={ageSeconds}
+        onBallotClick={() => setTab("ballot")}
+        onSimulateClick={() => setSimPanelOpen(true)}
+        simCount={simPositions.length}
+      />
 
       {account ? (
         <>
+          {/* ── Simulation active banner ─────────────────────────────────── */}
+          <SimulationBanner
+            simPositions={simPositions}
+            onOpen={() => setSimPanelOpen(true)}
+            onClearAll={clearAllSim}
+          />
+
           {/* ── Book selector bar ────────────────────────────────────────── */}
           <BookSelector
             activeBook={activeBook}
@@ -145,6 +226,8 @@ export default function Page() {
                       ? "border-orange-400 text-orange-300"
                       : activeBook === "investment"
                       ? "border-blue-400 text-blue-300"
+                      : activeBook === "simulated"
+                      ? "border-violet-400 text-violet-300"
                       : "border-cyan-400 text-cyan-300"
                     : "border-transparent text-slate-500 hover:text-slate-300"
                 }`}
@@ -155,17 +238,17 @@ export default function Page() {
           </nav>
 
           {tab === "command" ? (
-            <CommandCenter snapshot={activeSnapshot!} />
+            <CommandCenter snapshot={effectiveSnapshot!} />
           ) : tab === "overview" ? (
             <>
               <WorldClock />
 
-              {/* KPI strip — Investment/Combined uses standard strip; Trading uses its own */}
+              {/* KPI strip — Trading book gets its own strip; Investment/Combined/Simulated use the standard one */}
               {activeBook === "trading" ? (
                 <TradingKpiStrip
                   allPositions={snapshot!.positions}
                   bookConfig={bookConfig}
-                  symbolRates={snapshot!.symbolRates}
+                  symbolRates={{ ...snapshot!.symbolRates, ...simRates }}
                   todayRealized={snapshot!.todayRealized}
                 />
               ) : (
@@ -173,7 +256,7 @@ export default function Page() {
                   account={account}
                   positions={visiblePositions}
                   todayRealized={snapshot!.todayRealized}
-                  symbolRates={snapshot!.symbolRates}
+                  symbolRates={{ ...snapshot!.symbolRates, ...simRates }}
                   onCardClick={setKpiMetric}
                   activeCardLabel={kpiMetric}
                 />
@@ -183,7 +266,7 @@ export default function Page() {
                 <div className="lg:col-span-2">
                   <EquityCurve
                     positions={visiblePositions}
-                    symbolRates={snapshot!.symbolRates}
+                    symbolRates={{ ...snapshot!.symbolRates, ...simRates }}
                     account={account}
                     todayRealized={snapshot!.todayRealized}
                     metric={activeBook === "trading" ? "Floating P&L" : kpiMetric}
@@ -205,31 +288,35 @@ export default function Page() {
                     setBookConfig(next);
                     import("@/lib/books").then((m) => m.saveBookConfig(next));
                   }}
+                  onRemoveSim={(sym) => {
+                    const target = simPositions.find((p) => p.symbol === sym);
+                    if (target) removeSimPosition(target.id);
+                  }}
                 />
               </div>
             </>
           ) : tab === "analytics" ? (
-            <PositionAnalytics snapshot={activeSnapshot!} />
+            <PositionAnalytics snapshot={effectiveSnapshot!} />
           ) : tab === "attribution" ? (
-            <PerformanceAttribution snapshot={activeSnapshot!} />
+            <PerformanceAttribution snapshot={effectiveSnapshot!} />
           ) : tab === "risk" ? (
-            <RiskSuite snapshot={activeSnapshot!} />
+            <RiskSuite snapshot={effectiveSnapshot!} />
           ) : tab === "evolution" ? (
-            <PositionEvolution snapshot={activeSnapshot!} />
+            <PositionEvolution snapshot={effectiveSnapshot!} />
           ) : tab === "factors" ? (
-            <FactorExposure snapshot={activeSnapshot!} />
+            <FactorExposure snapshot={effectiveSnapshot!} />
           ) : tab === "margin" ? (
-            <MarginDashboard snapshot={activeSnapshot!} />
+            <MarginDashboard snapshot={effectiveSnapshot!} />
           ) : tab === "trading" ? (
-            <TradingAnalytics snapshot={activeSnapshot!} />
+            <TradingAnalytics snapshot={effectiveSnapshot!} />
           ) : tab === "integrity" ? (
-            <ValidationDashboard snapshot={activeSnapshot!} />
+            <ValidationDashboard snapshot={effectiveSnapshot!} />
           ) : tab === "glossary" ? (
             <MetricDictionary />
           ) : tab === "ballot" ? (
             <ResearchBallot />
           ) : (
-            <CommandCenter snapshot={activeSnapshot!} />
+            <CommandCenter snapshot={effectiveSnapshot!} />
           )}
 
           <footer className="px-6 py-6 text-center font-mono text-[11px] text-slate-600">
@@ -237,10 +324,21 @@ export default function Page() {
             {activeBook !== "combined" && (
               <span
                 className={`ml-2 font-semibold ${
-                  activeBook === "trading" ? "text-orange-500/60" : "text-blue-500/60"
+                  activeBook === "trading"
+                    ? "text-orange-500/60"
+                    : activeBook === "investment"
+                    ? "text-blue-500/60"
+                    : activeBook === "simulated"
+                    ? "text-violet-500/60"
+                    : ""
                 }`}
               >
                 · {activeBook} book
+              </span>
+            )}
+            {simActive && (
+              <span className="ml-2 font-semibold text-amber-500/60">
+                · {simPositions.length} simulated position{simPositions.length !== 1 ? "s" : ""} included
               </span>
             )}
           </footer>
@@ -258,13 +356,24 @@ export default function Page() {
         </div>
       )}
 
-      {/* Book classifier modal */}
+      {/* ── Book classifier modal ─────────────────────────────────────────── */}
       {classifierOpen && (
         <BookClassifier
-          symbols={allSymbols}
+          symbols={allLiveSymbols}
           config={bookConfig}
           onSave={setBookConfig}
           onClose={() => setClassifierOpen(false)}
+        />
+      )}
+
+      {/* ── Simulation panel ─────────────────────────────────────────────── */}
+      {simPanelOpen && (
+        <SimulationPanel
+          simPositions={simPositions}
+          onAdd={addSimPosition}
+          onRemove={removeSimPosition}
+          onClearAll={clearAllSim}
+          onClose={() => setSimPanelOpen(false)}
         />
       )}
     </main>

@@ -8,10 +8,14 @@ export default function StatusHeader({
   snapshot,
   ageSeconds,
   onBallotClick,
+  onSimulateClick,
+  simCount = 0,
 }: {
   snapshot: Snapshot | null;
   ageSeconds: number | null;
   onBallotClick?: () => void;
+  onSimulateClick?: () => void;
+  simCount?: number;
 }) {
   const connected = Boolean(snapshot?.ok && snapshot?.account);
   const stale = ageSeconds !== null && ageSeconds > 300;
@@ -33,6 +37,8 @@ export default function StatusHeader({
           </div>
           <div className="truncate font-mono text-[11px] text-slate-400 sm:text-xs">{sub}</div>
         </div>
+
+        {/* Ballot button */}
         <button
           onClick={onBallotClick}
           className="group flex shrink-0 items-center gap-1.5 rounded-md border border-sky-500/25 bg-sky-500/8 px-2.5 py-1.5 transition hover:border-sky-400/50 hover:bg-sky-500/15"
@@ -46,7 +52,40 @@ export default function StatusHeader({
             BALLOT
           </span>
         </button>
+
+        {/* Simulate button */}
+        <button
+          onClick={onSimulateClick}
+          className={`group flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 transition ${
+            simCount > 0
+              ? "border-amber-500/40 bg-amber-500/10 hover:border-amber-400/60 hover:bg-amber-500/15"
+              : "border-violet-500/25 bg-violet-500/8 hover:border-violet-400/50 hover:bg-violet-500/15"
+          }`}
+          title="Scenario Builder — add simulated positions"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={simCount > 0 ? "#f59e0b" : "#a78bfa"}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 opacity-80 group-hover:opacity-100"
+          >
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+          <span
+            className={`font-mono text-[10px] font-semibold tracking-wider ${
+              simCount > 0 ? "text-amber-400 group-hover:text-amber-300" : "text-violet-400 group-hover:text-violet-300"
+            }`}
+          >
+            {simCount > 0 ? `SIM · ${simCount}` : "SIMULATE"}
+          </span>
+        </button>
       </div>
+
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <span className="hidden font-mono text-xs text-slate-500 lg:inline">
           {new Date().toLocaleString()}

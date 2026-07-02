@@ -5,7 +5,7 @@
 import type { Position } from "./types";
 
 export type BookType = "investment" | "trading";
-export type BookView = "investment" | "trading" | "combined";
+export type BookView = "investment" | "trading" | "combined" | "simulated";
 
 export interface BookConfig {
   classifications: Record<string, BookType>; // symbol → book

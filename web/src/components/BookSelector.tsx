@@ -26,6 +26,12 @@ const BOOKS: {
     inactive: "text-slate-500 border-transparent hover:text-orange-300 hover:border-orange-500/30",
     active: "text-orange-300 border-orange-500/60 bg-orange-500/10",
   },
+  {
+    key: "simulated",
+    label: "Simulated",
+    inactive: "text-slate-500 border-transparent hover:text-violet-300 hover:border-violet-500/30",
+    active: "text-violet-300 border-violet-500/60 bg-violet-500/10",
+  },
 ];
 
 export default function BookSelector({
@@ -40,7 +46,7 @@ export default function BookSelector({
   return (
     <div className="flex items-center gap-2 px-4 pb-1 pt-2 sm:px-6">
       <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-slate-600">
-        Book
+        View
       </span>
       <div className="flex rounded-lg border border-white/[0.06] bg-white/[0.03] p-0.5">
         {BOOKS.map(({ key, label, inactive, active }) => (

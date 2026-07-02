@@ -7,7 +7,6 @@ import { getBook } from "@/lib/books";
 import { fmtMoney, fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 
 const MONTHS: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-// "15 May 2026  22:49" → epoch ms (UTC midnight of the open date); 0 if unparseable.
 function parseOpenMs(openTime: string): number {
   const t = openTime.trim().split(/\s+/);
   if (t.length < 3) return 0;
@@ -15,7 +14,6 @@ function parseOpenMs(openTime: string): number {
   if (!Number.isFinite(dd) || mo === undefined || !Number.isFinite(yy)) return 0;
   return Date.UTC(yy, mo, dd);
 }
-// Swap accrued since open → average per-day and annualized % of notional.
 function swapStats(swap: number, openTime: string, notional: number): { daily: number; pa: number } {
   const ms = parseOpenMs(openTime);
   const days = ms ? Math.max(1, (Date.now() - ms) / 86400000) : 0;
@@ -34,14 +32,27 @@ function groupBySymbol(positions: Position[]): Map<string, Position[]> {
 }
 
 interface Row {
-  sym: string; fills: Position[]; direction: "Long" | "Short";
-  totalVol: number; avgEntry: number; currentPrice: number;
-  totalMvSym: number; costValue: number; totalPnl: number; pnlPct: number; weight: number;
+  sym: string;
+  fills: Position[];
+  direction: "Long" | "Short";
+  totalVol: number;
+  avgEntry: number;
+  currentPrice: number;
+  totalMvSym: number;
+  costValue: number;
+  totalPnl: number;
+  pnlPct: number;
+  weight: number;
   book: BookType;
-  swapTotal: number; swapDaily: number; swapPa: number;
+  swapTotal: number;
+  swapDaily: number;
+  swapPa: number;
+  simulated: boolean;
 }
 
-type SortKey = "symbol" | "side" | "book" | "qty" | "avg" | "current" | "mv" | "cost" | "pnl" | "pnlpct" | "weight" | "swap" | "swapday" | "swappa";
+type SortKey =
+  | "symbol" | "book" | "side" | "qty" | "avg" | "current"
+  | "mv" | "cost" | "pnl" | "pnlpct" | "weight" | "swap" | "swapday" | "swappa";
 
 const COLUMNS: { key: SortKey; label: string; align: "left" | "right"; numeric: boolean }[] = [
   { key: "symbol", label: "Symbol", align: "left", numeric: false },
@@ -63,7 +74,7 @@ const COLUMNS: { key: SortKey; label: string; align: "left" | "right"; numeric: 
 const sortValue = (r: Row, k: SortKey): number | string => {
   switch (k) {
     case "symbol": return r.sym;
-    case "book": return r.book;
+    case "book": return r.simulated ? "zzz_simulated" : r.book;
     case "side": return r.direction;
     case "qty": return r.totalVol;
     case "avg": return r.avgEntry;
@@ -82,12 +93,35 @@ const sortValue = (r: Row, k: SortKey): number | string => {
 function BookBadge({
   sym,
   book,
+  simulated,
   onClick,
+  onRemoveSim,
 }: {
   sym: string;
   book: BookType;
+  simulated: boolean;
   onClick?: (sym: string, book: BookType) => void;
+  onRemoveSim?: (sym: string) => void;
 }) {
+  if (simulated) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="rounded border border-violet-500/40 bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-violet-400">
+          SIM
+        </span>
+        {onRemoveSim && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemoveSim(sym); }}
+            title={`Remove simulated ${sym}`}
+            className="text-[10px] text-slate-600 transition hover:text-rose-400"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const toggle = () => onClick?.(sym, book === "investment" ? "trading" : "investment");
   return (
     <button
@@ -112,21 +146,20 @@ export default function PositionsTable({
   bookConfig,
   activeBook,
   onBookChange,
+  onRemoveSim,
 }: {
   positions: Position[];
   allPositions?: Position[];
   bookConfig?: BookConfig;
   activeBook?: BookView;
   onBookChange?: (symbol: string, book: BookType) => void;
+  onRemoveSim?: (symbol: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("mv");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showAll, setShowAll] = useState(false);
 
-  // In Combined view, show all positions. In Investment/Trading view, the parent
-  // has already filtered `positions`. We offer a "Show all" toggle so users can
-  // see unclassified positions too.
   const displayPositions = useMemo(() => {
     if (showAll && allPositions) return allPositions;
     return positions;
@@ -144,6 +177,7 @@ export default function PositionsTable({
       const totalMvSym = fills.reduce((s, p) => s + p.marketValue, 0);
       const totalPnl = fills.reduce((s, p) => s + p.unrealizedPnl, 0);
       const basis = Math.abs(avgEntry * totalVol);
+      const isSimulated = fills.some((p) => p.simulated);
       const book = bookConfig ? getBook(sym, bookConfig) : "investment";
       const swapTotal = fills.reduce((s, p) => s + p.swap, 0);
       const swapDaily = fills.reduce((s, p) => s + swapStats(p.swap, p.openTime, Math.abs(p.marketValue)).daily, 0);
@@ -154,8 +188,7 @@ export default function PositionsTable({
         currentPrice: fills[0].currentPrice, totalMvSym, costValue, totalPnl,
         pnlPct: basis > 0 ? (totalPnl / basis) * 100 : 0,
         weight: (Math.abs(totalMvSym) / totalMv) * 100,
-        book,
-        swapTotal, swapDaily, swapPa,
+        book, swapTotal, swapDaily, swapPa, simulated: isSimulated,
       };
     });
     const dir = sortDir === "asc" ? 1 : -1;
@@ -181,19 +214,26 @@ export default function PositionsTable({
     });
 
   const symbolsLen = rows.length;
-  const showAllToggle = activeBook && activeBook !== "combined" && allPositions && allPositions.length !== positions.length;
+  const simCount = rows.filter((r) => r.simulated).length;
+  const showAllToggle =
+    activeBook &&
+    activeBook !== "combined" &&
+    activeBook !== "simulated" &&
+    allPositions &&
+    allPositions.length !== positions.length;
 
   return (
     <div className="rounded-lg border border-cyan-500/10 bg-white/[0.012]">
-      <div className="flex items-center gap-3 border-b border-cyan-500/10 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-cyan-500/10 px-4 py-3">
         <span className="text-sm font-semibold text-slate-200">
           Open Positions{" "}
           <span className="text-slate-500">
             ({symbolsLen} instrument{symbolsLen !== 1 ? "s" : ""}
-            {displayPositions.length !== symbolsLen ? `, ${displayPositions.length} fills` : ""})
+            {displayPositions.length !== symbolsLen ? `, ${displayPositions.length} fills` : ""}
+            {simCount > 0 && <span className="text-violet-400"> · {simCount} simulated</span>})
           </span>
         </span>
-        <span className="ml-1 font-normal text-[11px] text-slate-600">· click a column to sort ↑/↓</span>
+        <span className="font-normal text-[11px] text-slate-600">· click column to sort</span>
         {showAllToggle && (
           <button
             onClick={() => setShowAll((v) => !v)}
@@ -201,11 +241,6 @@ export default function PositionsTable({
           >
             {showAll ? "Show book only" : "Show all positions"}
           </button>
-        )}
-        {bookConfig && onBookChange && (
-          <span className="ml-auto text-[11px] text-slate-600">
-            · click <span className="text-blue-400">Invest</span>/<span className="text-orange-400">Trading</span> badge to reassign
-          </span>
         )}
       </div>
       <div className="overflow-x-auto">
@@ -236,24 +271,31 @@ export default function PositionsTable({
             {rows.map((r) => {
               const isOpen = expanded.has(r.sym);
               const multiFill = r.fills.length > 1;
+              const rowBg = r.simulated
+                ? "border-t border-violet-500/10 bg-violet-500/[0.025] hover:bg-violet-500/[0.04]"
+                : "border-t border-white/[0.04] hover:bg-white/[0.025]";
               return (
                 <Fragment key={r.sym}>
                   <tr
                     onClick={() => multiFill && toggle(r.sym)}
-                    className={`border-t border-white/[0.04] transition-colors ${multiFill ? "cursor-pointer hover:bg-white/[0.025]" : ""}`}
+                    className={`transition-colors ${rowBg} ${multiFill ? "cursor-pointer" : ""}`}
                   >
                     <td className="px-2 py-2.5 text-center text-slate-600">
                       {multiFill && <span className="select-none text-xs text-slate-500">{isOpen ? "▾" : "▸"}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-left">
-                      <span className="font-sans font-semibold text-slate-200">{r.sym}</span>
+                      <span className={`font-sans font-semibold ${r.simulated ? "text-violet-300" : "text-slate-200"}`}>
+                        {r.sym}
+                      </span>
                       {multiFill && <span className="ml-2 text-[10px] text-slate-600">{r.fills.length} fills</span>}
                     </td>
                     <td className="px-4 py-2.5 text-left">
                       <BookBadge
                         sym={r.sym}
                         book={r.book}
-                        onClick={onBookChange}
+                        simulated={r.simulated}
+                        onClick={r.simulated ? undefined : onBookChange}
+                        onRemoveSim={r.simulated ? onRemoveSim : undefined}
                       />
                     </td>
                     <td className="px-4 py-2.5 text-left">
@@ -278,26 +320,29 @@ export default function PositionsTable({
                     r.fills.map((fill, i) => {
                       const ss = swapStats(fill.swap, fill.openTime, Math.abs(fill.marketValue));
                       return (
-                      <tr key={`${r.sym}-fill-${i}`} className="border-t border-white/[0.02] bg-cyan-500/[0.02]">
-                        <td className="px-2 py-1.5" />
-                        <td className="px-4 py-1.5 text-left font-sans text-[11px] text-slate-500">
-                          &nbsp;&nbsp;└ Fill {i + 1}
-                          <span className="ml-2 text-slate-600">{fill.openTime}</span>
-                        </td>
-                        <td className="px-4 py-1.5" />
-                        <td className="px-4 py-1.5" />
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fill.volume.toFixed(4)}</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.entryPrice)}</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.currentPrice)}</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.marketValue, 0)}</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">{fmtMoney(fill.entryPrice * fill.volume, 0)}</td>
-                        <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(fill.unrealizedPnl)}`}>{fmtSigned(fill.unrealizedPnl)}</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">—</td>
-                        <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">—</td>
-                        <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(fill.swap)}`}>{fmtSigned(fill.swap, 2)}</td>
-                        <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(ss.daily)}`}>{fmtSigned(ss.daily, 2)}</td>
-                        <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(ss.pa)}`}>{ss.pa >= 0 ? "+" : ""}{ss.pa.toFixed(2)}%</td>
-                      </tr>
+                        <tr
+                          key={`${r.sym}-fill-${i}`}
+                          className={`border-t border-white/[0.02] ${r.simulated ? "bg-violet-500/[0.03]" : "bg-cyan-500/[0.02]"}`}
+                        >
+                          <td className="px-2 py-1.5" />
+                          <td className="px-4 py-1.5 text-left font-sans text-[11px] text-slate-500">
+                            &nbsp;&nbsp;└ {fill.simulated ? "Simulated" : `Fill ${i + 1}`}
+                            <span className="ml-2 text-slate-600">{fill.openTime}</span>
+                          </td>
+                          <td className="px-4 py-1.5" />
+                          <td className="px-4 py-1.5" />
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fill.volume.toFixed(4)}</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.entryPrice)}</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.currentPrice)}</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-500">{fmtMoney(fill.marketValue, 0)}</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">{fmtMoney(fill.entryPrice * fill.volume, 0)}</td>
+                          <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(fill.unrealizedPnl)}`}>{fmtSigned(fill.unrealizedPnl)}</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">—</td>
+                          <td className="px-4 py-1.5 text-right text-[11px] text-slate-600">—</td>
+                          <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(fill.swap)}`}>{fmtSigned(fill.swap, 2)}</td>
+                          <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(ss.daily)}`}>{fmtSigned(ss.daily, 2)}</td>
+                          <td className={`px-4 py-1.5 text-right text-[11px] ${pnlClass(ss.pa)}`}>{ss.pa >= 0 ? "+" : ""}{ss.pa.toFixed(2)}%</td>
+                        </tr>
                       );
                     })}
                 </Fragment>
