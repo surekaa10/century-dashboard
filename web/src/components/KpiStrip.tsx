@@ -57,7 +57,6 @@ export default function KpiStrip({
   activeCardLabel?: string;
 }) {
   const swap = positions.reduce((s, p) => s + p.swap, 0);
-  const holdings = new Set(positions.map((p) => p.symbol.trim())).size;
   const ccy = account.currency;
 
   // Floating P&L: MT5's authoritative per-position unrealized P&L. A
@@ -76,12 +75,14 @@ export default function KpiStrip({
   }, 0), [positions]);
   const floatingPct = costBasis > 0 ? (floating / costBasis) * 100 : 0;
 
-  // Yesterday P&L via symbolRates historical closes
-  const { yesterdayPnl, yesterdayDate } = useMemo(
+  // Yesterday / today open P&L via symbolRates historical closes
+  const { todayPnl, yesterdayPnl, yesterdayDate } = useMemo(
     () => buildYesterdayPnlFromRates(positions, symbolRates),
     [positions, symbolRates],
   );
+  const todayTotalPnl = todayPnl + todayRealized;
   const yesterdayPct = costBasis > 0 ? (yesterdayPnl / costBasis) * 100 : 0;
+  const todayPct = costBasis > 0 ? (todayTotalPnl / costBasis) * 100 : 0;
 
   const makeClick = (label: string) => (onCardClick ? () => onCardClick(label) : undefined);
   const isActive = (label: string) => activeCardLabel === label;
@@ -117,12 +118,13 @@ export default function KpiStrip({
       <Card label="Margin Utilised" value={fmtMoney(account.margin)} onClick={makeClick("Margin Utilised")} active={isActive("Margin Utilised")} />
       <Card label="Free Margin" value={fmtMoney(account.freeMargin)} onClick={makeClick("Free Margin")} active={isActive("Free Margin")} />
       <Card
-        label="Today Realized"
-        value={fmtSigned(todayRealized)}
-        valueClass={`font-mono ${pnlClass(todayRealized)}`}
-        hint={`${holdings} holdings`}
-        onClick={makeClick("Today Realized")}
-        active={isActive("Today Realized")}
+        label="Today P&L"
+        value={fmtSigned(todayTotalPnl)}
+        valueClass={`font-mono ${pnlClass(todayTotalPnl)}`}
+        sub={fmtPct(todayPct)}
+        hint={`open ${fmtSigned(todayPnl)} · realized ${fmtSigned(todayRealized)}`}
+        onClick={makeClick("Today P&L")}
+        active={isActive("Today P&L")}
       />
     </div>
   );

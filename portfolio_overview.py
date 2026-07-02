@@ -164,15 +164,14 @@ def compute_hero_metrics(
     total_swap         → sum(position.swap)             via positions_get()
     net_pnl            → sum(position.profit + .swap)   via positions_get()
     allocated_capital  → sum(position.volume × position.price_open)
-    today_realized     → sum(deal.profit+commission+swap for closing deals today)
-    return_on_equity   → floating_pnl / equity × 100   (derived)
-    return_on_allocated→ floating_pnl / allocated × 100 (derived)
+    today_realized       → sum(deal.profit+commission+swap for closing deals today)
+    return_on_cost_basis → floating_pnl / cost_basis × 100 (derived; cost_basis = Σ entry×volume)
     """
     empty = {
         "portfolio_value": 0.0, "allocated_capital": 0.0,
         "cash_balance": 0.0, "floating_pnl": 0.0, "net_pnl": 0.0,
         "total_swap": 0.0, "today_realized": today_realized,
-        "return_on_equity": 0.0, "return_on_allocated": 0.0,
+        "return_on_cost_basis": 0.0,
         "n_holdings": 0, "currency": "USD",
     }
     if account is None:
@@ -187,7 +186,7 @@ def compute_hero_metrics(
         }
 
     # MT5 positions_get() fields
-    allocated    = (positions_df["Volume"] * positions_df["Entry Price"]).sum()
+    cost_basis   = (positions_df["Volume"] * positions_df["Entry Price"]).sum()
     floating_pnl = positions_df["Unrealized P&L"].sum()   # position.profit only
     total_swap   = positions_df["Swap"].sum()              # position.swap only
     net_pnl      = floating_pnl + total_swap               # profit + swap
@@ -197,13 +196,12 @@ def compute_hero_metrics(
     return {
         "portfolio_value":    round(equity,       2),
         "cash_balance":       round(account.balance, 2),
-        "allocated_capital":  round(allocated,    2),
+        "allocated_capital":  round(cost_basis,   2),
         "floating_pnl":       round(floating_pnl, 2),   # position.profit
         "total_swap":         round(total_swap,   2),   # position.swap
         "net_pnl":            round(net_pnl,      2),   # profit + swap
         "today_realized":     round(today_realized, 2), # closed deals today
-        "return_on_equity":   round(floating_pnl / equity   * 100, 4) if equity   > 0 else 0.0,
-        "return_on_allocated":round(floating_pnl / allocated* 100, 4) if allocated> 0 else 0.0,
+        "return_on_cost_basis": round(floating_pnl / cost_basis * 100, 4) if cost_basis > 0 else 0.0,
         "n_holdings":         int(positions_df["Symbol"].nunique()),
         "currency":           account.currency,
     }

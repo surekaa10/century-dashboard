@@ -14,6 +14,15 @@ pusher.log
 # ── Research-Ballot: separate repo (apex-platform), cloned in for local work ─
 Research-Ballot/
 
+# ── Tunnel binary (standalone download, not source) ──────────────────────
+cloudflared.exe
+
+# ── MT5 live-quote bridge: local secrets + tunnel creds (NEVER commit) ────
+mt5_service/service.env
+mt5_service/tunnel.yml
+mt5_service/*.json
+.cloudflared/
+
 # ── Ready-to-paste Streamlit Cloud secrets (contains a token) ────────────
 streamlit_secrets_to_paste.toml
 
