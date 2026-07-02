@@ -117,12 +117,16 @@ export default function SimulationPanel({
   onAdd,
   onRemove,
   onClearAll,
+  onAddCurrentPortfolio,
+  importableCount,
   onClose,
 }: {
   simPositions: SimPosition[];
   onAdd: (pos: SimPosition, rates: Record<string, { dates: string[]; close: number[] }>) => void;
   onRemove: (id: string) => void;
   onClearAll: () => void;
+  onAddCurrentPortfolio: () => void;
+  importableCount: number;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -229,6 +233,22 @@ export default function SimulationPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto">
+          {/* ── One-click: import the live portfolio as a scenario seed ── */}
+          <div className="border-b border-white/[0.06] px-4 py-3">
+            <button
+              onClick={onAddCurrentPortfolio}
+              disabled={importableCount === 0}
+              className="w-full rounded-lg border border-violet-500/30 bg-violet-500/10 py-2 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {importableCount > 0
+                ? `+ Add current portfolio (${importableCount})`
+                : "Current portfolio already added"}
+            </button>
+            <div className="mt-1 text-center text-[10px] text-slate-600">
+              Clones live holdings into the scenario · remove any with ✕
+            </div>
+          </div>
+
           {/* ── Active simulated positions ── */}
           {simPositions.length > 0 && (
             <div className="border-b border-white/[0.06] px-4 py-3">

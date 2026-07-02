@@ -15,6 +15,7 @@ import {
   saveSimPositions,
   simToPosition,
   simToRates,
+  makeSimId,
 } from "@/lib/simulation";
 import StatusHeader from "@/components/StatusHeader";
 import BookSelector from "@/components/BookSelector";
@@ -154,6 +155,50 @@ export default function Page() {
     setSimRates({});
     saveSimPositions([]);
   };
+
+  // One-click: seed the scenario with the current live portfolio. Skips symbols
+  // already in the scenario so re-clicking never duplicates. Switches to the
+  // Simulated book so the clone shows in isolation (avoids double-counting the
+  // same holdings as live + simulated in combined views).
+  const addCurrentPortfolio = () => {
+    if (!snapshot) return;
+    const existing = new Set(simPositions.map((p) => p.symbol.toUpperCase()));
+    const imported: SimPosition[] = [];
+    const addRates: SymbolRates = {};
+    snapshot.positions.forEach((p, i) => {
+      const sym = p.symbol.trim().toUpperCase();
+      if (existing.has(sym)) return;
+      imported.push({
+        id: makeSimId() + i,
+        symbol: sym,
+        fullName: p.fullName,
+        direction: p.direction,
+        volume: p.volume,
+        entryPrice: p.entryPrice,
+        currentPrice: p.currentPrice,
+        notes: "From live portfolio",
+      });
+      const r = snapshot.symbolRates[p.symbol] ?? snapshot.symbolRates[sym];
+      if (r) addRates[sym] = r;
+    });
+    if (!imported.length) return;
+    const next = [...simPositions, ...imported];
+    setSimPositions(next);
+    saveSimPositions(next);
+    setSimRates((prev) => ({ ...prev, ...addRates }));
+    setActiveBook("simulated");
+  };
+
+  // Unique live symbols not yet in the scenario — drives the import button label.
+  const importableCount = useMemo(() => {
+    if (!snapshot) return 0;
+    const existing = new Set(simPositions.map((p) => p.symbol.toUpperCase()));
+    return new Set(
+      snapshot.positions
+        .map((p) => p.symbol.trim().toUpperCase())
+        .filter((s) => !existing.has(s)),
+    ).size;
+  }, [snapshot, simPositions]);
 
   // ── Effective snapshot ───────────────────────────────────────────────────────
   // This is the single snapshot every component receives.
@@ -388,6 +433,8 @@ export default function Page() {
           onAdd={addSimPosition}
           onRemove={removeSimPosition}
           onClearAll={clearAllSim}
+          onAddCurrentPortfolio={addCurrentPortfolio}
+          importableCount={importableCount}
           onClose={() => setSimPanelOpen(false)}
         />
       )}
