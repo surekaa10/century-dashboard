@@ -1,0 +1,17 @@
+# mt5_service/tunnel.yml.example — copy to tunnel.yml after the one-time setup.
+# Cloudflare named-tunnel config for the MT5 live-quote bridge.
+#
+# Fill in:
+#   <TUNNEL-UUID>  : printed by `cloudflared tunnel create mt5-bridge`
+#   credentials-file: the JSON cred file that command writes (usually under
+#                     %USERPROFILE%\.cloudflared\<TUNNEL-UUID>.json)
+#   hostname       : the public host you route via `cloudflared tunnel route dns`
+
+tunnel: <TUNNEL-UUID>
+credentials-file: C:\Users\devanshi.agrawal\.cloudflared\<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: mt5.example.com
+    service: http://localhost:8765
+  # everything else gets refused
+  - service: http_status:404
