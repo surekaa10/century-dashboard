@@ -184,7 +184,9 @@ export async function GET(req: Request) {
     // price fields, so fall back to the v8 chart (price, change, 52-wk, volume)
     // that works for every instrument. Equities keep their richer quoteSummary values.
     const lastClose = priceSeries.close[priceSeries.close.length - 1] ?? 0;
-    const prevClose = cMeta.previousClose ?? cMeta.chartPreviousClose ?? priceSeries.close[priceSeries.close.length - 2] ?? 0;
+    // Prior *daily* close — NOT chartPreviousClose (that's range-relative, ~1yr
+    // ago for a 1y chart, which would report a year-over-year "daily" change).
+    const prevClose = cMeta.previousClose ?? priceSeries.close[priceSeries.close.length - 2] ?? 0;
     const metaPrice = cMeta.regularMarketPrice ?? 0;
     const priceFb = n(fd.currentPrice ?? sd.regularMarketPrice) || metaPrice || lastClose;
     const changeFb = n(sd.regularMarketChange) || (prevClose ? priceFb - prevClose : 0);
