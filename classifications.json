@@ -1,7 +1,8 @@
 {
   "classifications": {
     "PLTR": "investment",
-    "MSFT": "investment"
+    "MSFT": "investment",
+    "RHMG": "trading"
   },
   "riskBudget": 10000
 }
