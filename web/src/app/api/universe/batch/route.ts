@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { yahooFetch } from "@/lib/yahoo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,10 +13,7 @@ export async function GET(req: Request) {
 
   try {
     const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(",")}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,marketCap,trailingPE,fiftyTwoWeekHigh,fiftyTwoWeekLow,longName,shortName,currency,fullExchangeName`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; century-dashboard/1.0)" },
-      cache: "no-store",
-    });
+    const res = await yahooFetch(url);
     if (!res.ok) throw new Error(`Yahoo batch ${res.status}`);
 
     const json = (await res.json()) as {

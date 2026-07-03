@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { yahooFetch } from "@/lib/yahoo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,10 +47,8 @@ export async function GET(req: Request) {
 
   try {
     const [summaryRes, chartRes] = await Promise.allSettled([
-      fetch(
-        `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=${MODULES}`,
-        { headers: { "User-Agent": "Mozilla/5.0 (compatible; century-dashboard/1.0)" }, cache: "no-store" },
-      ),
+      // quoteSummary is crumb-gated; the v8 chart endpoint is not.
+      yahooFetch(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=${MODULES}`),
       fetch(
         `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`,
         { headers: { "User-Agent": "Mozilla/5.0 (compatible; century-dashboard/1.0)" }, cache: "no-store" },
@@ -152,12 +151,14 @@ export async function GET(req: Request) {
 
     // ── Parse price chart ───────────────────────────────────────────────────────
     let priceSeries: { dates: string[]; close: number[] } = { dates: [], close: [] };
+    let chartName = "";
     if (chartRes.status === "fulfilled" && chartRes.value.ok) {
       const cr = (await chartRes.value.json()) as {
-        chart?: { result?: { timestamp?: number[]; indicators?: { quote?: { close?: (number | null)[] }[] } }[] };
+        chart?: { result?: { timestamp?: number[]; meta?: { longName?: string; shortName?: string }; indicators?: { quote?: { close?: (number | null)[] }[] } }[] };
       };
       const result = cr.chart?.result?.[0];
       if (result) {
+        chartName = result.meta?.longName ?? result.meta?.shortName ?? "";
         const ts  = result.timestamp ?? [];
         const cls = result.indicators?.quote?.[0]?.close ?? [];
         const dates: string[] = [];
@@ -176,7 +177,7 @@ export async function GET(req: Request) {
     // ── Build response ──────────────────────────────────────────────────────────
     const quote = {
       ticker,
-      name:              s(ap.longBusinessSummary ? sd : ap) || ticker,  // fallback
+      name:              chartName || s(ap.name) || ticker,
       price:             n(fd.currentPrice ?? sd.regularMarketPrice),
       change:            n(sd.regularMarketChange),
       changePct:         n(sd.regularMarketChangePercent),

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { yahooFetch } from "@/lib/yahoo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,11 +11,8 @@ export async function GET(req: Request) {
   if (!q || q.length < 1) return NextResponse.json({ results: [] });
 
   try {
-    const url = `https://query2.finance.yahoo.com/v7/finance/search?q=${encodeURIComponent(q)}&quotesCount=10&newsCount=0&listsCount=0&enableFuzzyQuery=true&enableNavLinks=false`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; century-dashboard/1.0)" },
-      cache: "no-store",
-    });
+    const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=10&newsCount=0&listsCount=0&enableFuzzyQuery=true&enableNavLinks=false`;
+    const res = await yahooFetch(url);
     if (!res.ok) throw new Error(`Yahoo search ${res.status}`);
 
     const json = (await res.json()) as {
