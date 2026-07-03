@@ -2,7 +2,8 @@
   "classifications": {
     "PLTR": "investment",
     "MSFT": "investment",
-    "RHMG": "trading"
+    "RHMG": "trading",
+    "ARKG": "trading"
   },
   "riskBudget": 10000
 }
