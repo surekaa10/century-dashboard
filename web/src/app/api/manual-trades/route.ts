@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
+import { ghConfigured, readGhJson, updateGhJson } from "@/lib/ghstore";
 
-// GET /api/manual-trades — returns all manually-recorded closed trades from Supabase.
-// These supplement MT5 deal history for trades that are missing from the snapshot
-// (e.g. pre-dashboard trades, broker data gaps).
+// Manually-recorded closed trades, backed by the GitHub snapshot pipeline.
+// These supplement MT5 deal history for trades missing from the snapshot
+// (e.g. the Gold loss, pre-dashboard trades, broker data gaps).
+// GET  /api/manual-trades → {trades, source}
+// POST /api/manual-trades ← snake_case trade fields → {trade}
+//
+// Stores manual_trades.json on the same repo/branch as snapshot.json, so trades
+// are shared across all users with no extra backend. Falls back to empty if GH
+// is unset.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const SB_URL = process.env.SUPABASE_URL ?? "";
-const SB_ANON = process.env.SUPABASE_ANON_KEY ?? "";
+const FILE = process.env.MANUAL_TRADES_PATH ?? "manual_trades.json";
 
 export interface ManualTrade {
   id: string;
@@ -22,135 +28,51 @@ export interface ManualTrade {
   note?: string;
 }
 
+const EMPTY: ManualTrade[] = [];
+
 export async function GET() {
-  if (!SB_URL || !SB_ANON) {
-    return NextResponse.json({ trades: [], source: "fallback" });
-  }
-
+  if (!ghConfigured()) return NextResponse.json({ trades: [], source: "fallback" });
   try {
-    const res = await fetch(
-      `${SB_URL}/rest/v1/manual_trades?select=id,symbol,direction,volume,entry_price,exit_price,realized_pnl,open_time,close_time,note&order=close_time.desc`,
-      {
-        headers: {
-          apikey: SB_ANON,
-          Authorization: `Bearer ${SB_ANON}`,
-        },
-        cache: "no-store",
-      },
-    );
-
-    if (!res.ok) throw new Error(`Supabase ${res.status}`);
-
-    const rows = (await res.json()) as {
-      id: string;
-      symbol: string;
-      direction: string;
-      volume: number;
-      entry_price: number;
-      exit_price: number;
-      realized_pnl: number;
-      open_time: string;
-      close_time: string;
-      note: string | null;
-    }[];
-
-    const trades: ManualTrade[] = rows.map((r) => ({
-      id: r.id,
-      symbol: r.symbol,
-      direction: (r.direction as "Long" | "Short"),
-      volume: r.volume,
-      entryPrice: r.entry_price,
-      exitPrice: r.exit_price,
-      realizedPnl: r.realized_pnl,
-      openTime: r.open_time,
-      closeTime: r.close_time,
-      note: r.note ?? undefined,
-    }));
-
-    return NextResponse.json({ trades, source: "supabase" });
+    const { data } = await readGhJson<ManualTrade[]>(FILE, EMPTY);
+    const trades = [...data].sort((a, b) => b.closeTime.localeCompare(a.closeTime));
+    return NextResponse.json({ trades, source: "github" });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ trades: [], source: "error", error: message });
+    const error = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ trades: [], source: "error", error });
   }
-}
-
-type RawRow = {
-  id: string;
-  symbol: string;
-  direction: string;
-  volume: number;
-  entry_price: number;
-  exit_price: number;
-  realized_pnl: number;
-  open_time: string;
-  close_time: string;
-  note: string | null;
-};
-
-function rowToTrade(r: RawRow): ManualTrade {
-  return {
-    id: r.id,
-    symbol: r.symbol,
-    direction: r.direction as "Long" | "Short",
-    volume: r.volume,
-    entryPrice: r.entry_price,
-    exitPrice: r.exit_price,
-    realizedPnl: r.realized_pnl,
-    openTime: r.open_time,
-    closeTime: r.close_time,
-    note: r.note ?? undefined,
-  };
 }
 
 export async function POST(req: Request) {
-  if (!SB_URL || !SB_ANON) {
-    return NextResponse.json({ error: "Supabase not configured — set SUPABASE_URL and SUPABASE_ANON_KEY" }, { status: 503 });
+  if (!ghConfigured()) {
+    return NextResponse.json({ error: "GH_REPO/GH_TOKEN not configured" }, { status: 503 });
   }
-
   try {
     const body = (await req.json()) as {
-      symbol: string;
-      direction: string;
-      volume: number;
-      entry_price: number;
-      exit_price: number;
-      realized_pnl: number;
-      open_time: string;
-      close_time: string;
-      note?: string | null;
+      symbol: string; direction: string; volume: number;
+      entry_price: number; exit_price: number; realized_pnl: number;
+      open_time: string; close_time: string; note?: string | null;
     };
-
     const { symbol, direction, volume, entry_price, exit_price, realized_pnl, open_time, close_time } = body;
     if (!symbol || !direction || !volume || entry_price == null || exit_price == null || realized_pnl == null || !open_time || !close_time) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const res = await fetch(`${SB_URL}/rest/v1/manual_trades`, {
-      method: "POST",
-      headers: {
-        apikey: SB_ANON,
-        Authorization: `Bearer ${SB_ANON}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify({
-        symbol: String(symbol).toUpperCase().trim(),
-        direction,
-        volume,
-        entry_price,
-        exit_price,
-        realized_pnl,
-        open_time,
-        close_time,
-        note: body.note ?? null,
-      }),
-      cache: "no-store",
-    });
+    const trade: ManualTrade = {
+      // Time-based id; multiple adds in one ms get a random suffix. Not for crypto.
+      id: `mt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      symbol: String(symbol).toUpperCase().trim(),
+      direction: direction === "Short" ? "Short" : "Long",
+      volume,
+      entryPrice: entry_price,
+      exitPrice: exit_price,
+      realizedPnl: realized_pnl,
+      openTime: open_time,
+      closeTime: close_time,
+      note: body.note ?? undefined,
+    };
 
-    if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
-
-    const rows = (await res.json()) as RawRow[];
-    return NextResponse.json({ trade: rowToTrade(rows[0]) });
+    await updateGhJson<ManualTrade[]>(FILE, EMPTY, `manual trade ${trade.symbol}`, (cur) => [...cur, trade]);
+    return NextResponse.json({ trade });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
