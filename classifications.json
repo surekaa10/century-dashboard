@@ -1,4 +1,6 @@
 {
-  "classifications": {},
+  "classifications": {
+    "PLTR": "trading"
+  },
   "riskBudget": 10000
 }
