@@ -152,13 +152,18 @@ export async function GET(req: Request) {
     // ── Parse price chart ───────────────────────────────────────────────────────
     let priceSeries: { dates: string[]; close: number[] } = { dates: [], close: [] };
     let chartName = "";
+    let cMeta: {
+      regularMarketPrice?: number; previousClose?: number; chartPreviousClose?: number;
+      regularMarketVolume?: number; fiftyTwoWeekHigh?: number; fiftyTwoWeekLow?: number;
+    } = {};
     if (chartRes.status === "fulfilled" && chartRes.value.ok) {
       const cr = (await chartRes.value.json()) as {
-        chart?: { result?: { timestamp?: number[]; meta?: { longName?: string; shortName?: string }; indicators?: { quote?: { close?: (number | null)[] }[] } }[] };
+        chart?: { result?: { timestamp?: number[]; meta?: Record<string, number | string>; indicators?: { quote?: { close?: (number | null)[] }[] } }[] };
       };
       const result = cr.chart?.result?.[0];
       if (result) {
-        chartName = result.meta?.longName ?? result.meta?.shortName ?? "";
+        cMeta = (result.meta ?? {}) as typeof cMeta;
+        chartName = (result.meta?.longName as string) ?? (result.meta?.shortName as string) ?? "";
         const ts  = result.timestamp ?? [];
         const cls = result.indicators?.quote?.[0]?.close ?? [];
         const dates: string[] = [];
@@ -174,17 +179,28 @@ export async function GET(req: Request) {
       }
     }
 
+    // ── Chart-derived fallbacks ──────────────────────────────────────────────────
+    // ETFs, bond/commodity funds and crypto have no financialData/summaryDetail
+    // price fields, so fall back to the v8 chart (price, change, 52-wk, volume)
+    // that works for every instrument. Equities keep their richer quoteSummary values.
+    const lastClose = priceSeries.close[priceSeries.close.length - 1] ?? 0;
+    const prevClose = cMeta.previousClose ?? cMeta.chartPreviousClose ?? priceSeries.close[priceSeries.close.length - 2] ?? 0;
+    const metaPrice = cMeta.regularMarketPrice ?? 0;
+    const priceFb = n(fd.currentPrice ?? sd.regularMarketPrice) || metaPrice || lastClose;
+    const changeFb = n(sd.regularMarketChange) || (prevClose ? priceFb - prevClose : 0);
+    const changePctFb = n(sd.regularMarketChangePercent) || (prevClose ? ((priceFb - prevClose) / prevClose) * 100 : 0);
+
     // ── Build response ──────────────────────────────────────────────────────────
     const quote = {
       ticker,
       name:              chartName || s(ap.name) || ticker,
-      price:             n(fd.currentPrice ?? sd.regularMarketPrice),
-      change:            n(sd.regularMarketChange),
-      changePct:         n(sd.regularMarketChangePercent),
+      price:             priceFb,
+      change:            changeFb,
+      changePct:         changePctFb,
       open:              n(sd.open ?? sd.regularMarketOpen),
       high:              n(sd.dayHigh ?? sd.regularMarketDayHigh),
       low:               n(sd.dayLow  ?? sd.regularMarketDayLow),
-      volume:            n(sd.volume  ?? sd.regularMarketVolume),
+      volume:            n(sd.volume  ?? sd.regularMarketVolume) || (cMeta.regularMarketVolume ?? 0),
       mktCap:            n(sd.marketCap),
       pe:                n(sd.trailingPE),
       eps:               n(ks.trailingEps),
@@ -192,8 +208,8 @@ export async function GET(req: Request) {
       dividend:          n(sd.dividendRate),
       dividendYield:     n(sd.dividendYield) * 100,
       beta:              n(sd.beta ?? ks.beta),
-      fiftyTwoWeekHigh:  n(sd.fiftyTwoWeekHigh),
-      fiftyTwoWeekLow:   n(sd.fiftyTwoWeekLow),
+      fiftyTwoWeekHigh:  n(sd.fiftyTwoWeekHigh) || (cMeta.fiftyTwoWeekHigh ?? 0),
+      fiftyTwoWeekLow:   n(sd.fiftyTwoWeekLow) || (cMeta.fiftyTwoWeekLow ?? 0),
       avgVolume:         n(sd.averageVolume),
       currency:          s(sd.currency ?? "USD"),
       exchange:          s(sd.exchange ?? ap.exchange ?? ""),
