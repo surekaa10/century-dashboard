@@ -141,6 +141,11 @@ class MT5Connector:
     def __init__(self) -> None:
         self._connected = False
         self.error: str = ""
+        # FX: {profit_currency -> rate to account currency}. Built in
+        # get_positions() and reused by get_symbol_rates() so every price,
+        # market value and rate series is expressed in the account currency.
+        self._fx_rates: dict = {}
+        self._account_ccy: str = "USD"
 
     # ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -215,11 +220,41 @@ class MT5Connector:
         if not raw:
             return pd.DataFrame()
 
-        rows = []
+        acct = mt5.account_info()
+        self._account_ccy = acct.currency if acct else "USD"
+
+        # Gather per-position metadata once (symbol_info is comparatively costly).
+        metas = []
         for p in raw:
-            sign = 1 if p.type == 0 else -1
             info = mt5.symbol_info(p.symbol)
-            cs = float(info.trade_contract_size) if info and info.trade_contract_size else 1.0
+            cs   = float(info.trade_contract_size) if info and info.trade_contract_size else 1.0
+            pccy = (getattr(info, "currency_profit", "") or self._account_ccy)
+            metas.append((p, info, cs, pccy))
+
+        # Build the FX table. This broker offers NO FX pair symbols (e.g. no
+        # EURUSD), so we recover the rate the way MT5 itself applied it: it
+        # already reports position.profit in the ACCOUNT currency, so
+        #   rate = profit / (directional_price_move * volume * contract_size)
+        # for any position with a non-zero price move. One rate per currency.
+        self._fx_rates = {self._account_ccy: 1.0}
+        for p, info, cs, pccy in metas:
+            if pccy == self._account_ccy or pccy in self._fx_rates:
+                continue
+            move = (p.price_current - p.price_open) if p.type == 0 else (p.price_open - p.price_current)
+            if move and p.volume and cs:
+                rate = p.profit / (move * p.volume * cs)
+                if rate > 0:            # sanity: FX rates are positive
+                    self._fx_rates[pccy] = rate
+
+        rows = []
+        for p, info, cs, pccy in metas:
+            sign = 1 if p.type == 0 else -1
+            # Convert quote-currency prices/value to the account currency so the
+            # whole dashboard is single-currency. profit/swap are already in the
+            # account currency (MT5 converts them), so leave those untouched.
+            # rate defaults to 1.0 when a currency's rate couldn't be recovered
+            # (e.g. only zero-move positions) — better native than wrong.
+            fx = self._fx_rates.get(pccy, 1.0)
             # MT5 instrument metadata that drives sector/asset-class classification.
             # description carries the GICS theme for ETFs; path segregates by asset
             # class/venue (e.g. "US EQUITY\…", "Metals\…", "Currency Index\…").
@@ -229,10 +264,10 @@ class MT5Connector:
                 "Symbol":         p.symbol,
                 "Direction":      "Long" if p.type == 0 else "Short",
                 "Volume":         p.volume,
-                "Entry Price":    p.price_open,
-                "Current Price":  p.price_current,
+                "Entry Price":    round(p.price_open    * fx, 2),
+                "Current Price":  round(p.price_current * fx, 2),
                 "Unrealized P&L": round(p.profit, 2),
-                "Market Value":   round(sign * p.volume * p.price_current * cs, 2),
+                "Market Value":   round(sign * p.volume * p.price_current * cs * fx, 2),
                 "Swap":           round(p.swap, 2),
                 "Open Time":      datetime.fromtimestamp(p.time).strftime("%d %b %Y  %H:%M"),
                 "Full Name":      full_name,
@@ -320,6 +355,15 @@ class MT5Connector:
             df["time"] = pd.to_datetime(df["time"], unit="s")
             df = df.rename(columns={"time": "date"}).set_index("date")
             df.index = df.index.tz_localize(None)
-            return df[["close"]].rename(columns={"close": "Close"})
+            out = df[["close"]].rename(columns={"close": "Close"})
+            # Convert closes to the account currency using the FX table built in
+            # get_positions() (uses today's rate for the whole series — the FX
+            # cancels in day-over-day P&L deltas; level is a mild approximation).
+            info = mt5.symbol_info(symbol)
+            pccy = (getattr(info, "currency_profit", "") or self._account_ccy)
+            fx = self._fx_rates.get(pccy, 1.0)
+            if fx != 1.0:
+                out["Close"] = out["Close"] * fx
+            return out
         except Exception:
             return pd.DataFrame()
