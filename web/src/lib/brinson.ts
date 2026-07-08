@@ -116,6 +116,21 @@ export function seriesReturn(series: PriceSeries, lookback: number): number {
   return ((end / start) - 1) * 100;
 }
 
+// Return % of a price series from a given calendar date (inclusive) to the last
+// point. Used for "since invested" attribution — each holding's benchmark is
+// measured over the same window the capital was actually deployed.
+//   fromDate before history  → full series
+//   fromDate at/after the end → 0 (no window)
+export function seriesReturnFromDate(series: PriceSeries, fromDate: string): number {
+  const n = series.dates.length;
+  if (n < 2) return 0;
+  const startIdx = fromDate ? series.dates.findIndex((d) => d >= fromDate) : 0;
+  if (startIdx < 0 || startIdx >= n - 1) return 0; // opened at/after the last point
+  const start = series.close[startIdx];
+  const end = series.close[n - 1];
+  return start > 0 && isFinite(start) && isFinite(end) ? ((end / start) - 1) * 100 : 0;
+}
+
 // Align two date-indexed arrays — inner join by date
 export function alignSeries(
   aDates: string[], aVals: number[],
@@ -175,6 +190,109 @@ export function computeBrinson(
     const selectionEffect    = w_b * (R_p - R_b_i);
     const interactionEffect  = (w_p - w_b) * (R_p - R_b_i);
     const totalEffect        = allocationEffect + selectionEffect + interactionEffect;
+
+    if (Math.abs(totalEffect) > 1e-5 || w_p > 0.001 || w_b > 0.001) {
+      sectors.push({
+        sector,
+        portfolioWeight:       w_p * 100,
+        benchmarkWeight:       w_b * 100,
+        activeWeight:          (w_p - w_b) * 100,
+        portfolioReturn:       R_p,
+        benchmarkSectorReturn: R_b_i,
+        allocationEffect,
+        selectionEffect,
+        interactionEffect,
+        totalEffect,
+      });
+    }
+  }
+
+  const allocationEffect  = sectors.reduce((s, x) => s + x.allocationEffect, 0);
+  const selectionEffect   = sectors.reduce((s, x) => s + x.selectionEffect, 0);
+  const interactionEffect = sectors.reduce((s, x) => s + x.interactionEffect, 0);
+  const explainedReturn   = allocationEffect + selectionEffect + interactionEffect;
+
+  return {
+    sectors: sectors.sort((a, b) => Math.abs(b.totalEffect) - Math.abs(a.totalEffect)),
+    allocationEffect,
+    selectionEffect,
+    interactionEffect,
+    totalActiveReturn: activeReturn,
+    portfolioReturn,
+    benchmarkReturn,
+    explainedReturn,
+    residual: activeReturn - explainedReturn,
+  };
+}
+
+// ── Brinson-Fachler, "since invested" (money-weighted) ─────────────────────────
+// Each holding's return is measured from its own entry (portfolio side from the
+// entry price; benchmark & sector-ETF side from the open date), so capital only
+// counts for the period it was actually deployed. Sector figures are MV-weighted
+// across the holdings in that sector; the overall benchmark is MV-weighted across
+// every holding's own since-invested benchmark return. Weights are unchanged
+// (each holding's MV ÷ total MV of the positions passed in).
+
+export interface SinceInvestedPosition {
+  symbol: string;
+  sector: string;
+  marketValue: number;
+  entryPrice: number;
+  currentPrice: number;
+  direction: "Long" | "Short";
+  openDate: string; // "YYYY-MM-DD" (or "" if unparseable → full benchmark history)
+}
+
+export function computeBrinsonSinceInvested(
+  positions: SinceInvestedPosition[],
+  benchmark: PriceSeries,
+  sectorRates: Record<string, PriceSeries>,
+): BrinsonResult {
+  const gross = positions.reduce((s, p) => s + Math.abs(p.marketValue), 0) || 1;
+
+  const rows = positions.map((p) => {
+    const sign = p.direction === "Short" ? -1 : 1;
+    const mv = Math.abs(p.marketValue);
+    // Portfolio return since capital invested = holding-period return from entry price.
+    const rp = p.entryPrice > 0 ? sign * ((p.currentPrice / p.entryPrice) - 1) * 100 : 0;
+    // Benchmark & sector-ETF returns over the SAME window (open date → today).
+    const rBench = seriesReturnFromDate(benchmark, p.openDate);
+    const etf = SECTOR_ETF[p.sector];
+    const rSectorEtf = etf && sectorRates[etf] ? seriesReturnFromDate(sectorRates[etf], p.openDate) : rBench;
+    return { sector: p.sector, mv, w: mv / gross, rp, rBench, rSectorEtf };
+  });
+
+  const portfolioReturn = rows.reduce((s, r) => s + r.w * r.rp, 0);
+  const benchmarkReturn = rows.reduce((s, r) => s + r.w * r.rBench, 0);
+  const activeReturn = portfolioReturn - benchmarkReturn;
+
+  const secMap = new Map<string, { mv: number; wret: number; wbench: number }>();
+  for (const r of rows) {
+    const e = secMap.get(r.sector) ?? { mv: 0, wret: 0, wbench: 0 };
+    e.mv += r.mv;
+    e.wret += r.mv * r.rp;
+    e.wbench += r.mv * r.rSectorEtf;
+    secMap.set(r.sector, e);
+  }
+
+  const allSectors = new Set([
+    ...secMap.keys(),
+    ...Object.keys(SP500_SECTOR_WEIGHTS).filter((s) => SP500_SECTOR_WEIGHTS[s] >= 0.005),
+  ]);
+
+  const sectors: BrinsonSector[] = [];
+  for (const sector of allSectors) {
+    const e = secMap.get(sector);
+    const w_p = e ? e.mv / gross : 0;
+    const w_b = SP500_SECTOR_WEIGHTS[sector] ?? 0;
+    const R_p = e && e.mv ? e.wret / e.mv : 0;
+    const R_b_i = e && e.mv ? e.wbench / e.mv : benchmarkReturn;
+    const R_b = benchmarkReturn;
+
+    const allocationEffect  = (w_p - w_b) * (R_b_i - R_b);
+    const selectionEffect   = w_b * (R_p - R_b_i);
+    const interactionEffect = (w_p - w_b) * (R_p - R_b_i);
+    const totalEffect       = allocationEffect + selectionEffect + interactionEffect;
 
     if (Math.abs(totalEffect) > 1e-5 || w_p > 0.001 || w_b > 0.001) {
       sectors.push({

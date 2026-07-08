@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Snapshot } from "@/lib/types";
 import {
-  buildContribution, sectorAttribution, sectorAttributionForPeriod,
+  buildContribution, sectorAttribution,
   contributionConcentration, leadership, periodReturn, cumReturnSeries,
   computeMonthlyReturns, computeTradeAttribution,
 } from "@/lib/attribution";
 import {
-  computeBrinson, computeRiskMetrics, seriesReturn,
+  computeBrinsonSinceInvested, computeRiskMetrics,
   type BrinsonResult, type RiskMetrics, type PriceSeries,
 } from "@/lib/brinson";
+import { classify } from "@/lib/sectors";
+import { parseOpenDate } from "@/lib/analytics";
 import { fmtSigned, fmtPct, pnlClass } from "@/lib/format";
 import { Section, StatCard, Sparkline } from "../ui";
 import {
@@ -64,9 +66,8 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
   const monthlyRets = useMemo(() => computeMonthlyReturns(data), [data]);
   const tradeAttrib = useMemo(() => computeTradeAttribution(snapshot.deals ?? []), [snapshot.deals]);
 
-  // ── Benchmark / period selectors ───────────────────────────────────────────
+  // ── Benchmark selector ─────────────────────────────────────────────────────
   const [bmTicker, setBmTicker]     = useState<string>("SPY");
-  const [period, setPeriod]         = useState<PeriodKey>("inception");
   const [attrData, setAttrData]     = useState<AttrApiResponse | null>(null);
   const [attrLoading, setAttrLoading] = useState(true);
   const [attrError, setAttrError]   = useState("");
@@ -87,19 +88,24 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
     return () => { alive = false; };
   }, [bmTicker]);
 
-  // ── Compute Brinson-Fachler for selected period ────────────────────────────
-  const activePeriod = PERIODS.find((p) => p.key === period)!;
-  const lookback     = activePeriod.lookback;
-
+  // Brinson-Fachler, money-weighted "since invested": each holding measured from
+  // its own entry; benchmark/sector-ETF matched to the same holding period.
+  // Independent of the period pills (those still drive the Absolute Return tab).
   const brinson = useMemo<BrinsonResult | null>(() => {
-    if (!attrData?.benchmark?.dates.length || data.dates.length < 2) return null;
+    if (!attrData?.benchmark?.dates.length || !snapshot.positions.length) return null;
 
-    const periodSectors  = sectorAttributionForPeriod(data.perPosition, data.dates, data.mvSeries, lookback);
-    const portReturn     = periodReturn(data, period).ret;
-    const benchReturn    = seriesReturn(attrData.benchmark, lookback);
+    const rows = snapshot.positions.map((p) => ({
+      symbol:       p.symbol,
+      sector:       classify(p).sector,
+      marketValue:  p.marketValue,
+      entryPrice:   p.entryPrice,
+      currentPrice: p.currentPrice,
+      direction:    p.direction,
+      openDate:     parseOpenDate(p.openTime),
+    }));
 
-    return computeBrinson(periodSectors, attrData.sectorRates, benchReturn, portReturn, lookback);
-  }, [attrData, data, period, lookback]);
+    return computeBrinsonSinceInvested(rows, attrData.benchmark, attrData.sectorRates);
+  }, [attrData, snapshot.positions]);
 
   // ── Risk metrics ───────────────────────────────────────────────────────────
   const riskMetrics = useMemo<RiskMetrics | null>(() => {
@@ -160,20 +166,11 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">Period</span>
-          <div className="flex gap-1">
-            {PERIODS.map((p) => (
-              <button key={p.key} onClick={() => setPeriod(p.key)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  period === p.key
-                    ? "bg-cyan-500/20 text-cyan-300"
-                    : "border border-white/10 text-slate-500 hover:text-slate-300"
-                }`}>
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider">
+          <span className="text-slate-500">Window</span>
+          <span className="rounded-full border border-cyan-500/20 bg-cyan-500/5 px-3 py-1 text-cyan-300/80">
+            Since each holding&apos;s entry
+          </span>
         </div>
       </div>
 
@@ -209,12 +206,12 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
 
           {/* Active Return KPI strip */}
           <Section title="Active Return Overview"
-            subtitle={`Portfolio vs ${bmName} — ${activePeriod.label} period — Brinson-Fachler methodology`}>
+            subtitle={`Portfolio vs ${bmName} — since each holding's entry date — Brinson-Fachler (money-weighted)`}>
             <ActiveReturnHeader
               brinson={brinson}
               risk={riskMetrics}
               benchmarkName={bmName}
-              period={activePeriod.label}
+              period="Since Invested"
               loading={attrLoading}
             />
           </Section>
@@ -249,7 +246,7 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
           {/* AI insights */}
           {brinson && (
             <Section title="Attribution Insights">
-              <BrinsonInsights brinson={brinson} benchmarkName={bmName} period={activePeriod.label} />
+              <BrinsonInsights brinson={brinson} benchmarkName={bmName} period="Since Invested" />
             </Section>
           )}
         </>
