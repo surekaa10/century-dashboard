@@ -76,9 +76,11 @@ export function buildContribution(positions: Position[], rates: SymbolRates): Co
     let acc = 0;
     for (const d of daily) { acc += d; cum.push(acc); }
 
-    const firstClose = closeAligned.find((x) => Number.isFinite(x)) ?? 0;
-    const lastClose = closeAligned[T - 1] ?? 0;
-    const returnPct = firstClose > 0 ? sign * (lastClose / firstClose - 1) * 100 : 0;
+    // Since-invested holding-period return: from the entry price (what the
+    // capital actually bought) to the current price — matches the Brinson tab.
+    // The $ contribution path (daily/cum) is already open-date-masked, so it
+    // only accrues for days the position was actually held.
+    const returnPct = p.entryPrice > 0 ? sign * (p.currentPrice / p.entryPrice - 1) * 100 : 0;
     const weightFrac = Math.abs(p.marketValue) / grossMvCurrent;
 
     return {

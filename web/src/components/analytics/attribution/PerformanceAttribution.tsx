@@ -278,7 +278,7 @@ export default function PerformanceAttribution({ snapshot }: { snapshot: Snapsho
           </Section>
 
           {/* Position Attribution */}
-          <Section title="Position Attribution" subtitle="Contribution = weight × return">
+          <Section title="Position Attribution" subtitle="Return since each holding's entry · Contribution = weight × return">
             <PositionAttributionTable rows={data.perPosition} />
             <div className="mt-4"><ContributorsDetractors rows={data.perPosition} /></div>
           </Section>
