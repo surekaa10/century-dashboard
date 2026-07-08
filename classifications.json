@@ -3,7 +3,7 @@
     "PLTR": "investment",
     "MSFT": "investment",
     "RHMG": "investment",
-    "ARKG": "investment",
+    "ARKG": "trading",
     "USCOCOA_CASH": "trading"
   },
   "riskBudget": 10000
