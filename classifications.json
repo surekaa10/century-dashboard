@@ -4,7 +4,9 @@
     "MSFT": "investment",
     "RHMG": "investment",
     "ARKG": "trading",
-    "USCOCOA_CASH": "trading"
+    "USCOCOA_CASH": "trading",
+    "DOLIDX_SEP26": "investment",
+    "NIKKEI": "trading"
   },
   "riskBudget": 10000
 }
